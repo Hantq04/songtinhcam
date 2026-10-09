@@ -1,0 +1,987 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class SteamCalculatorScreen extends StatefulWidget {
+  const SteamCalculatorScreen({super.key});
+
+  @override
+  State<SteamCalculatorScreen> createState() => _SteamCalculatorScreenState();
+}
+
+class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
+  final TextEditingController _steamIdController = TextEditingController();
+  final TextEditingController _apiKeyController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  bool _isApiKeyObscured = true;
+  String _selectedCurrency = 'Vietnamese Dong';
+  bool _isLoading = false;
+  Map<String, dynamic>? _calculationResult;
+
+  final List<Map<String, String>> _currencies = [
+    {'name': 'Vietnamese Dong', 'code': 'VND', 'symbol': '₫'},
+    {'name': 'U.S. Dollar', 'code': 'USD', 'symbol': '\$'},
+    {'name': 'Euro', 'code': 'EUR', 'symbol': '€'},
+    {'name': 'British Pound', 'code': 'GBP', 'symbol': '£'},
+    {'name': 'Japanese Yen', 'code': 'JPY', 'symbol': '¥'},
+    {'name': 'Korean Won', 'code': 'KRW', 'symbol': '₩'},
+    {'name': 'Chinese Yuan', 'code': 'CNY', 'symbol': '¥'},
+  ];
+
+  final List<Map<String, String>> _lookupExamples = [
+    {
+      'type': 'Steam vanity url',
+      'url': 'https://steamcommunity.com/id/gabelogannewell',
+    },
+    {
+      'type': 'Steam profile url',
+      'url': 'https://steamcommunity.com/profiles/76561198006889896',
+    },
+    {
+      'type': 'Steam profile url',
+      'url': 'https://steamcommunity.com/profiles/[U:1:1208333168]',
+    },
+    {
+      'type': 'Steam /user/ url',
+      'url': 'https://steamcommunity.com/user/qfkb',
+    },
+    {
+      'type': 'Steam trade offer',
+      'url': 'https://steamcommunity.com/tradeoffer/new/?partner=1208333168',
+    },
+  ];
+
+  @override
+  void dispose() {
+    _steamIdController.dispose();
+    _apiKeyController.dispose();
+    super.dispose();
+  }
+
+  void _calculateAccountValue() async {
+    if (_steamIdController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFE53935),
+          content: Text(
+            'Vui lòng nhập Profile URL hoặc Steam ID!',
+            style: TextStyle(color: Colors.white),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Simulate API processing / calculation
+    await Future.delayed(const Duration(milliseconds: 900));
+
+    if (!mounted) return;
+
+    final input = _steamIdController.text.trim();
+    final isGabe = input.toLowerCase().contains('gabelogannewell') ||
+        input.contains('76561198006889896');
+
+    setState(() {
+      _isLoading = false;
+      _calculationResult = {
+        'profileName': isGabe ? 'Rabscuttle (Gabe Newell)' : 'Steam Explorer',
+        'steamId': input,
+        'steamLevel': isGabe ? 111 : 42,
+        'totalValue': _selectedCurrency == 'Vietnamese Dong'
+            ? '58.420.000 ₫'
+            : '\$2,390.00',
+        'lowestPrice': _selectedCurrency == 'Vietnamese Dong'
+            ? '14.850.000 ₫'
+            : '\$610.00',
+        'gamesOwned': isGabe ? 2841 : 315,
+        'hoursPlayed': isGabe ? '8,420h' : '1,280h',
+        'pricePerHour': _selectedCurrency == 'Vietnamese Dong'
+            ? '6.900 ₫/h'
+            : '\$0.28/h',
+        'vacStatus': 'In good standing',
+      };
+    });
+  }
+
+  void _fillSampleUrl(String url) {
+    setState(() {
+      _steamIdController.text = url;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFF1B2838),
+        content: Text(
+          'Đã sao chép ví dụ: $url',
+          style: const TextStyle(color: Color(0xFF66C0F4)),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const bgDark = Color(0xFF0F141D);
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Scaffold(
+      backgroundColor: bgDark,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopNavigationBar(isMobile),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 16.0 : 40.0,
+                  vertical: 24.0,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildHeroHeader(),
+                        const SizedBox(height: 32),
+                        _buildCalculatorCard(),
+                        const SizedBox(height: 24),
+                        if (_isLoading)
+                          const Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF3880FF),
+                            ),
+                          )
+                        else if (_calculationResult != null) ...[
+                          _buildCalculationResultCard(),
+                          const SizedBox(height: 24),
+                        ],
+                        _buildHelpfulNotes(),
+                        const SizedBox(height: 24),
+                        _buildFilterBadges(),
+                        const SizedBox(height: 36),
+                        _buildLookupExamplesTable(),
+                        const SizedBox(height: 48),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Top SteamDB-like navigation bar
+  Widget _buildTopNavigationBar(bool isMobile) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF0B0F17),
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF1E2638),
+            width: 1,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          // Menu button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF182030),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFF2B3A52), width: 1),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.menu, size: 16, color: Colors.white),
+                SizedBox(width: 6),
+                Text(
+                  'Menu',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // SteamDB Logo
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A9FFF),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.sports_esports,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'SteamDB',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+
+          const Spacer(),
+
+          if (MediaQuery.of(context).size.width >= 1024) ...[
+            // Header Search Input
+            Container(
+              width: 150,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFF151D2A),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF26354D)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: const Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Search...',
+                      style: TextStyle(color: Color(0xFF6B7A90), fontSize: 13),
+                    ),
+                  ),
+                  Icon(Icons.search, size: 16, color: Color(0xFF6B7A90)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Navigation Links
+            _buildNavLink('Sales'),
+            _buildNavLink('Charts'),
+            _buildNavLink('Calculator', isActive: true),
+            _buildNavLink('Calendar'),
+            _buildNavLink('Patches'),
+            _buildNavLink('Tags'),
+            const SizedBox(width: 8),
+            _buildSupportLink(),
+            const SizedBox(width: 16),
+          ],
+
+          // Right user profile badge / dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131B26),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Color(0xFF28384E),
+                  child: Icon(Icons.person, size: 16, color: Colors.white70),
+                ),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavLink(String title, {bool isActive = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: isActive ? Colors.white : const Color(0xFF94A3B8),
+          fontSize: 13,
+          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportLink() {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.favorite, size: 13, color: Color(0xFFD946EF)),
+        SizedBox(width: 4),
+        Text(
+          'Support us',
+          style: TextStyle(
+            color: Color(0xFFD946EF),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Steam Calculator Hero Header
+  Widget _buildHeroHeader() {
+    return Column(
+      children: [
+        const Text(
+          'Steam Calculator',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Calculate your Steam account value and convert any SteamID',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.65),
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Main Input Fields & Calculation Action Form
+  Widget _buildCalculatorCard() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Input 1: URL / Steam ID
+          _buildSteamIdInput(),
+          const SizedBox(height: 14),
+
+          // Input 2: Steam Web API Key
+          _buildApiKeyInput(),
+          const SizedBox(height: 18),
+
+          // Currency Dropdown + Get Disappointed Action Button
+          _buildActionBar(),
+        ],
+      ),
+    );
+  }
+
+  /// Input 1: URL or Steam ID field (SteamDB pill-styled search bar)
+  Widget _buildSteamIdInput() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF141C28),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF26374D), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.search,
+            color: Color(0xFF6B7E96),
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _steamIdController,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+              ),
+              cursorColor: const Color(0xFF3B82F6),
+              decoration: InputDecoration(
+                hintText: 'Your profile url or steamid',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  fontSize: 15,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onSubmitted: (_) => _calculateAccountValue(),
+            ),
+          ),
+          if (_steamIdController.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear, color: Color(0xFF6B7E96), size: 18),
+              onPressed: () {
+                setState(() {
+                  _steamIdController.clear();
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Input 2: Steam Web API Key
+  Widget _buildApiKeyInput() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF141C28),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF26374D), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.key_outlined,
+            color: Color(0xFF6B7E96),
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _apiKeyController,
+              obscureText: _isApiKeyObscured,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.5,
+              ),
+              cursorColor: const Color(0xFF3B82F6),
+              decoration: InputDecoration(
+                hintText: 'Steam Web API Key (apiKey)',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  fontSize: 15,
+                  letterSpacing: 0,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              _isApiKeyObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              color: const Color(0xFF6B7E96),
+              size: 20,
+            ),
+            tooltip: _isApiKeyObscured ? 'Show API Key' : 'Hide API Key',
+            onPressed: () {
+              setState(() {
+                _isApiKeyObscured = !_isApiKeyObscured;
+              });
+            },
+          ),
+          if (_apiKeyController.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear, color: Color(0xFF6B7E96), size: 18),
+              onPressed: () {
+                setState(() {
+                  _apiKeyController.clear();
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Action Row: Currency Dropdown + Blue Button
+  Widget _buildActionBar() {
+    final currencyDropdown = Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141C28),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF2B3A50)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedCurrency,
+          dropdownColor: const Color(0xFF16202E),
+          icon: const Padding(
+            padding: EdgeInsets.only(left: 6),
+            child: Icon(Icons.unfold_more, color: Color(0xFF8C9BAE), size: 18),
+          ),
+          style: const TextStyle(
+            color: Color(0xFFD1D5DB),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _selectedCurrency = newValue;
+              });
+            }
+          },
+          items: _currencies.map<DropdownMenuItem<String>>((currency) {
+            return DropdownMenuItem<String>(
+              value: currency['name'],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(currency['name']!),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${currency['symbol']})',
+                    style: const TextStyle(color: Color(0xFF6B7E96)),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+
+    final submitButton = ElevatedButton(
+      onPressed: _isLoading ? null : _calculateAccountValue,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1B62C0),
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: const Color(0xFF1B62C0).withValues(alpha: 0.5),
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Get disappointed in your life',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
+            ),
+          ),
+          SizedBox(width: 8),
+          Icon(Icons.arrow_forward, size: 16),
+        ],
+      ),
+    );
+
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
+        children: [
+          currencyDropdown,
+          submitButton,
+        ],
+      ),
+    );
+  }
+
+  /// Helpful notes with icons matching SteamDB screenshot
+  Widget _buildHelpfulNotes() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildNoteRow(
+          icon: Icons.info_outline,
+          iconColor: const Color(0xFF60A5FA),
+          text:
+              'Any SteamID format is accepted, enter anything you want and we will convert it on the fly for you.',
+        ),
+        const SizedBox(height: 8),
+        _buildNoteRow(
+          icon: Icons.warning_amber_rounded,
+          iconColor: const Color(0xFFF59E0B),
+          text: 'You cannot enter your login username or nickname.',
+        ),
+        const SizedBox(height: 8),
+        _buildNoteRow(
+          icon: Icons.vpn_key_outlined,
+          iconColor: const Color(0xFF34D399),
+          text: 'Steam Web API Key helps access private/friend-only statistics accurately.',
+          linkText: 'Get API Key at steamcommunity.com/dev/apikey',
+          onLinkTap: () {
+            Clipboard.setData(
+              const ClipboardData(text: 'https://steamcommunity.com/dev/apikey'),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Đã copy link lấy API Key: https://steamcommunity.com/dev/apikey'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildNoteRow(
+          icon: Icons.person_outline,
+          iconColor: const Color(0xFF93C5FD),
+          text: '',
+          linkText: 'View your profile.',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoteRow({
+    required IconData icon,
+    required Color iconColor,
+    required String text,
+    String? linkText,
+    VoidCallback? onLinkTap,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                color: Color(0xFF8F9DAE),
+                fontSize: 13,
+                height: 1.4,
+              ),
+              children: [
+                if (text.isNotEmpty) TextSpan(text: text),
+                if (text.isNotEmpty && linkText != null) const TextSpan(text: ' '),
+                if (linkText != null)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: InkWell(
+                      onTap: onLinkTap,
+                      child: Text(
+                        linkText,
+                        style: const TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontSize: 13,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 3 Pill action buttons from screenshot: Profile badges, Top game owners, Top profile levels
+  Widget _buildFilterBadges() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: [
+        _buildPillButton(
+          title: 'Profile badges',
+          icon: Icons.military_tech_outlined,
+        ),
+        _buildPillButton(
+          title: 'Top game owners',
+          icon: Icons.emoji_events_outlined,
+        ),
+        _buildPillButton(
+          title: 'Top profile levels',
+          icon: Icons.star_border_outlined,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPillButton({required String title, required IconData icon}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A26),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFF26374D)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFF8F9DAE)),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFFCBD5E1),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Lookup examples table matching screenshot
+  Widget _buildLookupExamplesTable() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'SteamID Lookup: Examples of what can be entered to find a SteamID',
+          style: TextStyle(
+            color: Color(0xFFCBD5E1),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF121925),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFF243348)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: List.generate(_lookupExamples.length, (index) {
+              final item = _lookupExamples[index];
+              final isEven = index.isEven;
+              final isLast = index == _lookupExamples.length - 1;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: isEven ? const Color(0xFF121925) : const Color(0xFF0F1520),
+                  border: isLast
+                      ? null
+                      : const Border(
+                          bottom: BorderSide(
+                            color: Color(0xFF1E2B3E),
+                            width: 1,
+                          ),
+                        ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 150,
+                      child: Text(
+                        item['type']!,
+                        style: const TextStyle(
+                          color: Color(0xFF8F9DAE),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _fillSampleUrl(item['url']!),
+                        child: Text(
+                          item['url']!,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontSize: 13,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.content_paste_go,
+                        size: 16,
+                        color: Color(0xFF6B7E96),
+                      ),
+                      tooltip: 'Điền vào ô URL/SteamID',
+                      onPressed: () => _fillSampleUrl(item['url']!),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Preview of Steam account calculation results
+  Widget _buildCalculationResultCard() {
+    final result = _calculationResult!;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF151E2B),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2A3D55), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1A65C1).withValues(alpha: 0.12),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Profile header row
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3880FF), Color(0xFF0056B3)],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.person, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      result['profileName'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      result['steamId'],
+                      style: const TextStyle(
+                        color: Color(0xFF8F9DAE),
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F2B3E),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF3880FF)),
+                ),
+                child: Text(
+                  'Level ${result['steamLevel']}',
+                  style: const TextStyle(
+                    color: Color(0xFF60A5FA),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: Color(0xFF223044), height: 1),
+          const SizedBox(height: 16),
+
+          // Stats grid
+          Wrap(
+            spacing: 24,
+            runSpacing: 16,
+            children: [
+              _buildStatItem('Account Value', result['totalValue'], const Color(0xFF4ADE80)),
+              _buildStatItem('Lowest Price', result['lowestPrice'], const Color(0xFF60A5FA)),
+              _buildStatItem('Games Owned', '${result['gamesOwned']}', Colors.white),
+              _buildStatItem('Hours Played', result['hoursPlayed'], Colors.white),
+              _buildStatItem('Price / Hour', result['pricePerHour'], const Color(0xFFFBBF24)),
+              _buildStatItem('VAC Status', result['vacStatus'], const Color(0xFF34D399)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color valueColor) {
+    return SizedBox(
+      width: 150,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF8F9DAE),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
