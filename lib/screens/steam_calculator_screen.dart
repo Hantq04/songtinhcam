@@ -244,7 +244,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
               ),
               const SizedBox(width: 8),
               const Text(
-                'SteamDB',
+                'SongTinhCam',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
