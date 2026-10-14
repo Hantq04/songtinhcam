@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/steam_service.dart';
 
 class SteamCalculatorScreen extends StatefulWidget {
   const SteamCalculatorScreen({super.key});
@@ -20,12 +21,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
 
   final List<Map<String, String>> _currencies = [
     {'name': 'Vietnamese Dong', 'code': 'VND', 'symbol': '₫'},
-    {'name': 'U.S. Dollar', 'code': 'USD', 'symbol': '\$'},
-    {'name': 'Euro', 'code': 'EUR', 'symbol': '€'},
-    {'name': 'British Pound', 'code': 'GBP', 'symbol': '£'},
-    {'name': 'Japanese Yen', 'code': 'JPY', 'symbol': '¥'},
-    {'name': 'Korean Won', 'code': 'KRW', 'symbol': '₩'},
-    {'name': 'Chinese Yuan', 'code': 'CNY', 'symbol': '¥'},
+    {'name': 'U.S. Dollar', 'code': 'USD', 'symbol': '\$'}
   ];
 
   final List<Map<String, String>> _lookupExamples = [
@@ -44,11 +40,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
     {
       'type': 'Steam /user/ url',
       'url': 'https://steamcommunity.com/user/qfkb',
-    },
-    {
-      'type': 'Steam trade offer',
-      'url': 'https://steamcommunity.com/tradeoffer/new/?partner=1208333168',
-    },
+    }
   ];
 
   @override
@@ -77,35 +69,53 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       _isLoading = true;
     });
 
-    // Simulate API processing / calculation
-    await Future.delayed(const Duration(milliseconds: 900));
-
-    if (!mounted) return;
-
     final input = _steamIdController.text.trim();
-    final isGabe = input.toLowerCase().contains('gabelogannewell') ||
-        input.contains('76561198006889896');
+    final apiKey = _apiKeyController.text.trim();
 
-    setState(() {
-      _isLoading = false;
-      _calculationResult = {
-        'profileName': isGabe ? 'Rabscuttle (Gabe Newell)' : 'Steam Explorer',
-        'steamId': input,
-        'steamLevel': isGabe ? 111 : 42,
-        'totalValue': _selectedCurrency == 'Vietnamese Dong'
-            ? '58.420.000 ₫'
-            : '\$2,390.00',
-        'lowestPrice': _selectedCurrency == 'Vietnamese Dong'
-            ? '14.850.000 ₫'
-            : '\$610.00',
-        'gamesOwned': isGabe ? 2841 : 315,
-        'hoursPlayed': isGabe ? '8,420h' : '1,280h',
-        'pricePerHour': _selectedCurrency == 'Vietnamese Dong'
-            ? '6.900 ₫/h'
-            : '\$0.28/h',
-        'vacStatus': 'In good standing',
-      };
-    });
+    try {
+      final result = await SteamService.calculateAccount(
+        input: input,
+        apiKey: apiKey,
+        currencyName: _selectedCurrency,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _calculationResult = result.toMap();
+      });
+
+      if (result.statusNote != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1E2838),
+            content: Text(
+              result.statusNote!,
+              style: const TextStyle(color: Color(0xFF93C5FD)),
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFE53935),
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+            style: const TextStyle(color: Colors.white),
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   void _fillSampleUrl(String url) {
@@ -880,16 +890,35 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
           // Profile header row
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF3880FF), Color(0xFF0056B3)],
-                  ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(Icons.person, color: Colors.white, size: 28),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: result['avatarUrl'] != null && (result['avatarUrl'] as String).isNotEmpty
+                    ? Image.network(
+                        result['avatarUrl'],
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 48,
+                          height: 48,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF3880FF), Color(0xFF0056B3)],
+                            ),
+                          ),
+                          child: const Icon(Icons.person, color: Colors.white, size: 28),
+                        ),
+                      )
+                    : Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF3880FF), Color(0xFF0056B3)],
+                          ),
+                        ),
+                        child: const Icon(Icons.person, color: Colors.white, size: 28),
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -949,9 +978,43 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
               _buildStatItem('Games Owned', '${result['gamesOwned']}', Colors.white),
               _buildStatItem('Hours Played', result['hoursPlayed'], Colors.white),
               _buildStatItem('Price / Hour', result['pricePerHour'], const Color(0xFFFBBF24)),
-              _buildStatItem('VAC Status', result['vacStatus'], const Color(0xFF34D399)),
+              _buildStatItem(
+                'VAC Status',
+                result['vacStatus'],
+                result['vacStatus'].toString().toLowerCase().contains('ban')
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFF34D399),
+              ),
             ],
           ),
+
+          if (result['statusNote'] != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF192233),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF2E415E)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Color(0xFF60A5FA)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      result['statusNote'],
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
