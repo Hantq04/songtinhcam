@@ -61,7 +61,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFF1E2838),
-          content: Text('Đã cập nhật dữ liệu cho: ${_result.profileName}'),
+          content: Text('Updated data for: ${_result.profileName}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -87,7 +87,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
       const SnackBar(
         backgroundColor: Color(0xFF182030),
         content: Text(
-          'Đã sao chép liên kết hồ sơ Steam vào clipboard!',
+          'Profile link copied to clipboard!',
           style: TextStyle(color: Color(0xFF60A5FA)),
         ),
         behavior: SnackBarBehavior.floating,
@@ -222,13 +222,16 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
       padding: EdgeInsets.all(isMobile ? 16 : 24),
       child: isMobile
           ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildProfileLeft(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 const Divider(color: Color(0xFF1E2B3E), height: 1),
                 const SizedBox(height: 16),
-                _buildProfileRight(),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildProfileRight(),
+                ),
               ],
             )
           : Row(
@@ -552,7 +555,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
           Expanded(
             child: Text(
               _result.statusNote ??
-                  'Dữ liệu đầy đủ từ Steam Web API & Steam Store API (đã quét toàn bộ thư viện game và giá hiện tại).',
+                  'Full data from Steam Web API & Steam Store API (scanned entire game library and current prices).',
               style: const TextStyle(
                 color: Color(0xFF93C5FD),
                 fontSize: 13,
@@ -578,20 +581,28 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '$gamesCount games owned',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                '$gamesCount games owned',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            Text(
-              calculatedCount > 0 ? '$calculatedCount games calculated' : 'games are hidden',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                calculatedCount > 0 ? '$calculatedCount games calculated' : 'games are hidden',
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
           ],
@@ -615,20 +626,28 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Level ${_result.steamLevel}  ·  XP to next level',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                'Level ${_result.steamLevel}  ·  XP to next level',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            Text(
-              '${_result.steamLevel * 100} XP',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '${_result.steamLevel * 100} XP',
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -685,17 +704,26 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
         border: Border.all(color: const Color(0xFF223044)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 20,
-        alignment: WrapAlignment.spaceBetween,
-        children: [
-          _buildStatColumn('Average price ⓘ', avgPriceStr, Colors.white),
-          _buildStatColumn('Average price per hour ⓘ', _result.pricePerHour, const Color(0xFFFBBF24)),
-          _buildStatColumn('Hours on record', _result.hoursPlayed, Colors.white),
-          _buildStatColumn('Average playtime', avgPlaytimeStr, Colors.white),
-          _buildStatColumn("⭐ Today's prices ⓘ", _result.lowestPrice, const Color(0xFF60A5FA)),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 620;
+          final colWidth = isNarrow
+              ? (constraints.maxWidth - 20) / 2
+              : 155.0;
+
+          return Wrap(
+            spacing: isNarrow ? 20 : 24,
+            runSpacing: 20,
+            alignment: WrapAlignment.spaceBetween,
+            children: [
+              _buildStatColumn('Average price ⓘ', avgPriceStr, Colors.white, width: colWidth),
+              _buildStatColumn('Average price per hour ⓘ', _result.pricePerHour, const Color(0xFFFBBF24), width: colWidth),
+              _buildStatColumn('Hours on record', _result.hoursPlayed, Colors.white, width: colWidth),
+              _buildStatColumn('Average playtime', avgPlaytimeStr, Colors.white, width: colWidth),
+              _buildStatColumn("⭐ Today's prices ⓘ", _result.lowestPrice, const Color(0xFF60A5FA), width: colWidth),
+            ],
+          );
+        },
       ),
     );
   }
@@ -703,9 +731,9 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
   String _formatAvgPrice(num amount) =>
       SteamFormatters.formatAmount(amount, _currencyName);
 
-  Widget _buildStatColumn(String label, String value, Color valueColor) {
+  Widget _buildStatColumn(String label, String value, Color valueColor, {double? width}) {
     return SizedBox(
-      width: 155,
+      width: width ?? 155,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

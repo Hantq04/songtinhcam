@@ -57,7 +57,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         const SnackBar(
           backgroundColor: Color(0xFFE53935),
           content: Text(
-            'Vui lòng nhập Profile URL hoặc Steam ID!',
+            'Please enter a Steam Profile URL or Steam ID!',
             style: TextStyle(color: Colors.white),
           ),
           behavior: SnackBarBehavior.floating,
@@ -172,7 +172,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
                                 ),
                                 SizedBox(height: 16),
                                 Text(
-                                  'Đang tải dữ liệu hồ sơ và thư viện Steam...',
+                                  'Loading Steam profile and library data...',
                                   style: TextStyle(
                                     color: Color(0xFF94A3B8),
                                     fontSize: 14,
@@ -692,7 +692,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
                         size: 16,
                         color: Color(0xFF6B7E96),
                       ),
-                      tooltip: 'Điền vào ô URL/SteamID',
+                      tooltip: 'Fill in URL/SteamID',
                       onPressed: () => _fillSampleUrl(item['url']!),
                     ),
                   ],
