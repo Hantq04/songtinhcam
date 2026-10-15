@@ -32,7 +32,10 @@ class SteamTopNavBar extends StatelessWidget {
           ),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 16,
+        vertical: 10,
+      ),
       child: Row(
         children: [
           // Back button hoặc Menu button
@@ -41,7 +44,10 @@ class SteamTopNavBar extends StatelessWidget {
               onTap: onBack ?? () => Navigator.pop(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF182030),
                   borderRadius: BorderRadius.circular(4),
@@ -50,14 +56,14 @@ class SteamTopNavBar extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.arrow_back, size: 15, color: Colors.white),
-                    SizedBox(width: 6),
+                    Icon(Icons.arrow_back, size: 14, color: Colors.white),
+                    SizedBox(width: 4),
                     Text(
                       'Back',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontSize: 12.5,
                       ),
                     ),
                   ],
@@ -69,7 +75,10 @@ class SteamTopNavBar extends StatelessWidget {
               onTap: onMenuTap,
               borderRadius: BorderRadius.circular(4),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF182030),
                   borderRadius: BorderRadius.circular(4),
@@ -78,14 +87,14 @@ class SteamTopNavBar extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.menu, size: 16, color: Colors.white),
-                    SizedBox(width: 6),
+                    Icon(Icons.menu, size: 15, color: Colors.white),
+                    SizedBox(width: 4),
                     Text(
                       'Menu',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontSize: 12.5,
                       ),
                     ),
                   ],
@@ -93,43 +102,38 @@ class SteamTopNavBar extends StatelessWidget {
               ),
             ),
 
-          if (showBackButton || showMenuButton) const SizedBox(width: 14),
+          if (showBackButton || showMenuButton) SizedBox(width: isMobile ? 8 : 14),
 
           // Logo SongTinhCam SteamDB style
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1A9FFF),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.sports_esports,
-                      size: 14,
-                      color: Colors.white,
-                    ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A9FFF),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.sports_esports,
+                    size: 14,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Flexible(
-                  child: Text(
-                    'SongTinhCam',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'SongTinhCam',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.2,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
 
           const Spacer(),
@@ -148,7 +152,10 @@ class SteamTopNavBar extends StatelessWidget {
 
           // Profile / Avatar pill
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 6 : 8,
+              vertical: 4,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFF131B26),
               borderRadius: BorderRadius.circular(4),
@@ -156,12 +163,12 @@ class SteamTopNavBar extends StatelessWidget {
             child: const Row(
               children: [
                 CircleAvatar(
-                  radius: 12,
+                  radius: 11,
                   backgroundColor: Color(0xFF28384E),
-                  child: Icon(Icons.person, size: 16, color: Colors.white70),
+                  child: Icon(Icons.person, size: 15, color: Colors.white70),
                 ),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
+                SizedBox(width: 3),
+                Icon(Icons.arrow_drop_down, color: Colors.white70, size: 16),
               ],
             ),
           ),

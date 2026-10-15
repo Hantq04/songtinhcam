@@ -12,7 +12,7 @@ void main() {
     // Verify that the title is rendered.
     expect(find.text('Steam Calculator'), findsOneWidget);
     expect(find.text('Your profile url or steamid'), findsOneWidget);
-    expect(find.text('Steam Web API Key (apiKey)'), findsOneWidget);
+    expect(find.text('Get disappointed in your life'), findsOneWidget);
   });
 
   testWidgets('SteamResultScreen renders Account Value correctly on mobile', (WidgetTester tester) async {

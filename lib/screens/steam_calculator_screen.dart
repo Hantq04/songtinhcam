@@ -13,10 +13,8 @@ class SteamCalculatorScreen extends StatefulWidget {
 
 class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
   final TextEditingController _steamIdController = TextEditingController();
-  final TextEditingController _apiKeyController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  bool _isApiKeyObscured = true;
   String _selectedCurrency = 'Vietnamese Dong';
   bool _isLoading = false;
 
@@ -47,7 +45,6 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
   @override
   void dispose() {
     _steamIdController.dispose();
-    _apiKeyController.dispose();
     super.dispose();
   }
 
@@ -71,12 +68,10 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
     });
 
     final input = _steamIdController.text.trim();
-    final apiKey = _apiKeyController.text.trim();
 
     try {
       final result = await SteamService.calculateAccount(
         input: input,
-        apiKey: apiKey,
         currencyName: _selectedCurrency,
       );
 
@@ -86,7 +81,9 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         _isLoading = false;
       });
 
-      Navigator.push(
+      _steamIdController.clear();
+
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => SteamResultScreen(
@@ -95,6 +92,12 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
           ),
         ),
       );
+
+      if (mounted) {
+        setState(() {
+          _steamIdController.clear();
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -233,12 +236,8 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Input 1: URL / Steam ID
+          // Input: URL / Steam ID
           _buildSteamIdInput(),
-          const SizedBox(height: 14),
-
-          // Input 2: Steam Web API Key
-          _buildApiKeyInput(),
           const SizedBox(height: 18),
 
           // Currency Dropdown + Get Disappointed Action Button
@@ -248,7 +247,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
     );
   }
 
-  /// Input 1: URL or Steam ID field (SteamDB pill-styled search bar)
+  /// Input: URL or Steam ID field (SteamDB pill-styled search bar)
   Widget _buildSteamIdInput() {
     return Container(
       decoration: BoxDecoration(
@@ -300,81 +299,6 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
               onPressed: () {
                 setState(() {
                   _steamIdController.clear();
-                });
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Input 2: Steam Web API Key
-  Widget _buildApiKeyInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF141C28),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF26374D), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.key_outlined,
-            color: Color(0xFF6B7E96),
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _apiKeyController,
-              obscureText: _isApiKeyObscured,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                letterSpacing: 0.5,
-              ),
-              cursorColor: const Color(0xFF3B82F6),
-              decoration: InputDecoration(
-                hintText: 'Steam Web API Key (apiKey)',
-                hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  fontSize: 15,
-                  letterSpacing: 0,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              _isApiKeyObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-              color: const Color(0xFF6B7E96),
-              size: 20,
-            ),
-            tooltip: _isApiKeyObscured ? 'Show API Key' : 'Hide API Key',
-            onPressed: () {
-              setState(() {
-                _isApiKeyObscured = !_isApiKeyObscured;
-              });
-            },
-          ),
-          if (_apiKeyController.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear, color: Color(0xFF6B7E96), size: 18),
-              onPressed: () {
-                setState(() {
-                  _apiKeyController.clear();
                 });
               },
             ),
@@ -496,28 +420,26 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         ),
         const SizedBox(height: 8),
         _buildNoteRow(
-          icon: Icons.vpn_key_outlined,
+          icon: Icons.public,
           iconColor: const Color(0xFF34D399),
-          text: 'Steam Web API Key helps access private/friend-only statistics accurately.',
-          linkText: 'Get API Key at steamcommunity.com/dev/apikey',
+          text:
+              'Profile and "Game details" must be set to Public on Steam so your games can be calculated.',
+          linkText: 'Steam Privacy Settings',
           onLinkTap: () {
             Clipboard.setData(
-              const ClipboardData(text: 'https://steamcommunity.com/dev/apikey'),
+              const ClipboardData(
+                text: 'https://steamcommunity.com/my/edit/settings',
+              ),
             );
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Đã copy link lấy API Key: https://steamcommunity.com/dev/apikey'),
+                content: Text(
+                  'Copied privacy settings link: https://steamcommunity.com/my/edit/settings',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           },
-        ),
-        const SizedBox(height: 8),
-        _buildNoteRow(
-          icon: Icons.person_outline,
-          iconColor: const Color(0xFF93C5FD),
-          text: '',
-          linkText: 'View your profile.',
         ),
       ],
     );

@@ -9,6 +9,36 @@ export '../models/steam_models.dart';
 export '../widgets/steam_image.dart';
 
 class SteamService {
+  static String? _cachedEnvApiKey;
+
+  /// Steam Web API Key: Đọc từ biến môi trường STEAM_API_KEY hoặc tự động từ file .env
+  static String get defaultApiKey {
+    if (_cachedEnvApiKey != null) return _cachedEnvApiKey!;
+
+    const envVal = String.fromEnvironment('STEAM_API_KEY');
+    if (envVal.isNotEmpty) {
+      _cachedEnvApiKey = envVal;
+      return envVal;
+    }
+
+    try {
+      final envFile = File('.env');
+      if (envFile.existsSync()) {
+        for (final line in envFile.readAsLinesSync()) {
+          final trimmed = line.trim();
+          if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
+          if (trimmed.startsWith('STEAM_API_KEY=')) {
+            _cachedEnvApiKey = trimmed.substring('STEAM_API_KEY='.length).trim();
+            return _cachedEnvApiKey!;
+          }
+        }
+      }
+    } catch (_) {}
+
+    _cachedEnvApiKey = '';
+    return '';
+  }
+
   static final Map<String, List<String>> _dnsCache = {};
   static final Map<String, num> _appPriceCache = {};
 
@@ -326,13 +356,15 @@ class SteamService {
       } catch (_) {}
     }
 
-    // 3. Lấy toàn bộ game qua Steam Web API GetOwnedGames (nếu người dùng cung cấp API Key)
-    final cleanApiKey = apiKey?.trim();
+    // 3. Lấy toàn bộ game qua Steam Web API GetOwnedGames (sử dụng API key người dùng hoặc API key mặc định như SteamDB)
+    final cleanApiKey = (apiKey != null && apiKey.trim().isNotEmpty)
+        ? apiKey.trim()
+        : defaultApiKey;
 
     List<SteamGameItem> games = [];
     bool fetchedFromWebApi = false;
 
-    if (cleanApiKey != null && cleanApiKey.isNotEmpty && steamId64.isNotEmpty) {
+    if (cleanApiKey.isNotEmpty && steamId64.isNotEmpty) {
       try {
         final apiUrl =
             'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=$cleanApiKey&steamid=$steamId64&include_appinfo=1&include_played_free_games=1';
