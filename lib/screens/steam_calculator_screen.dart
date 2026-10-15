@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/steam_service.dart';
+import '../widgets/steam_top_nav_bar.dart';
 import 'steam_result_screen.dart';
 
 class SteamCalculatorScreen extends StatefulWidget {
@@ -140,7 +141,10 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopNavigationBar(isMobile),
+            SteamTopNavBar(
+              isMobile: isMobile,
+              showMenuButton: true,
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
@@ -192,174 +196,6 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  /// Top SteamDB-like navigation bar
-  Widget _buildTopNavigationBar(bool isMobile) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0B0F17),
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF1E2638),
-            width: 1,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          // Menu button
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF182030),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF2B3A52), width: 1),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.menu, size: 16, color: Colors.white),
-                SizedBox(width: 6),
-                Text(
-                  'Menu',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // SteamDB Logo
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1A9FFF),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.sports_esports,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'SongTinhCam',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ],
-          ),
-
-          const Spacer(),
-
-          if (MediaQuery.of(context).size.width >= 1024) ...[
-            // Header Search Input
-            Container(
-              width: 150,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFF151D2A),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF26354D)),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: const Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Search...',
-                      style: TextStyle(color: Color(0xFF6B7A90), fontSize: 13),
-                    ),
-                  ),
-                  Icon(Icons.search, size: 16, color: Color(0xFF6B7A90)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // Navigation Links
-            _buildNavLink('Sales'),
-            _buildNavLink('Charts'),
-            _buildNavLink('Calculator', isActive: true),
-            _buildNavLink('Calendar'),
-            _buildNavLink('Patches'),
-            _buildNavLink('Tags'),
-            const SizedBox(width: 8),
-            _buildSupportLink(),
-            const SizedBox(width: 16),
-          ],
-
-          // Right user profile badge / dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF131B26),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor: Color(0xFF28384E),
-                  child: Icon(Icons.person, size: 16, color: Colors.white70),
-                ),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavLink(String title, {bool isActive = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: isActive ? Colors.white : const Color(0xFF94A3B8),
-          fontSize: 13,
-          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSupportLink() {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.favorite, size: 13, color: Color(0xFFD946EF)),
-        SizedBox(width: 4),
-        Text(
-          'Support us',
-          style: TextStyle(
-            color: Color(0xFFD946EF),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 

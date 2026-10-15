@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:songtinhcam/services/steam_service.dart';
+import 'package:songtinhcam/utils/steam_formatters.dart';
 
 void main() {
   group('SteamService buildSteamXmlUrl tests', () {
@@ -50,6 +51,29 @@ void main() {
       expect(map['name'], 'Buckshot Roulette');
       expect(map['finalPriceFormatted'], '45.000 ₫');
       expect(map['isFree'], false);
+    });
+  });
+
+  group('SteamFormatters tests', () {
+    test('formats VND currency with thousand separator dots and ₫', () {
+      expect(SteamFormatters.formatVnd(140000), '140.000 ₫');
+      expect(SteamFormatters.formatVnd(0), '0 ₫');
+      expect(SteamFormatters.formatVnd(1234567), '1.234.567 ₫');
+    });
+
+    test('formats USD currency correctly', () {
+      expect(SteamFormatters.formatUsd(19.99), '\$19.99');
+      expect(SteamFormatters.formatUsd(0), '\$0.00');
+    });
+
+    test('formats price per hour correctly', () {
+      expect(SteamFormatters.formatPricePerHour(15000, 'VND'), '15.000 ₫/h');
+      expect(SteamFormatters.formatPricePerHour(1.25, 'USD'), '\$1.25/h');
+    });
+
+    test('formats minutes to hours', () {
+      expect(SteamFormatters.formatMinutesToHours(120), '2h');
+      expect(SteamFormatters.formatMinutesToHours(60000), '1,000h');
     });
   });
 }

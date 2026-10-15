@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/steam_service.dart';
+import '../utils/steam_formatters.dart';
+import '../widgets/steam_top_nav_bar.dart';
 
 class SteamResultScreen extends StatefulWidget {
   final SteamCalculationResult result;
@@ -104,7 +106,11 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopNavigationBar(isMobile),
+            SteamTopNavBar(
+              isMobile: isMobile,
+              showBackButton: true,
+              onBack: () => Navigator.pop(context),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
@@ -155,151 +161,6 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  /// Top SteamDB-styled navigation bar
-  Widget _buildTopNavigationBar(bool isMobile) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0B0F17),
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF1E2638),
-            width: 1,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          // Back button
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(4),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF182030),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF2B3A52), width: 1),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.arrow_back, size: 15, color: Colors.white),
-                  SizedBox(width: 6),
-                  Text(
-                    'Back',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          // Logo
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1A9FFF),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.sports_esports,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'SongTinhCam',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ],
-          ),
-
-          const Spacer(),
-
-          if (!isMobile) ...[
-            _buildNavLink('Sales'),
-            _buildNavLink('Charts'),
-            _buildNavLink('Calculator', isActive: true),
-            _buildNavLink('Calendar'),
-            _buildNavLink('Patches'),
-            const SizedBox(width: 8),
-            _buildSupportLink(),
-            const SizedBox(width: 16),
-          ],
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF131B26),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor: Color(0xFF28384E),
-                  child: Icon(Icons.person, size: 16, color: Colors.white70),
-                ),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavLink(String title, {bool isActive = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: isActive ? Colors.white : const Color(0xFF94A3B8),
-          fontSize: 13,
-          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSupportLink() {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.favorite, size: 13, color: Color(0xFFD946EF)),
-        SizedBox(width: 4),
-        Text(
-          'Support us',
-          style: TextStyle(
-            color: Color(0xFFD946EF),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 
@@ -839,23 +700,8 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     );
   }
 
-  String _formatAvgPrice(num amount) {
-    if (_currencyName == 'U.S. Dollar') {
-      return '\$${amount.toStringAsFixed(2)}';
-    }
-    final intVal = amount.round();
-    final str = intVal.toString();
-    final buffer = StringBuffer();
-    int count = 0;
-    for (int i = str.length - 1; i >= 0; i--) {
-      buffer.write(str[i]);
-      count++;
-      if (count % 3 == 0 && i != 0) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString().split('').reversed.join('')} ₫';
-  }
+  String _formatAvgPrice(num amount) =>
+      SteamFormatters.formatAmount(amount, _currencyName);
 
   Widget _buildStatColumn(String label, String value, Color valueColor) {
     return SizedBox(
