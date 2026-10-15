@@ -1,11 +1,120 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
 
+/// Chi tiết một game trong thư viện Steam (tương ứng SteamGameItem trong steam-api-test)
+class SteamGameItem {
+  final int appId;
+  final String name;
+  final double playtimeHours;
+  final double? recentPlaytimeHours;
+  final String? logoUrl;
+  final String? iconUrl;
+  final String storeUrl;
+  num? initialPrice;
+  num? finalPrice;
+  String? initialPriceFormatted;
+  String? finalPriceFormatted;
+  int discountPercent;
+  bool isFree;
+
+  SteamGameItem({
+    required this.appId,
+    required this.name,
+    required this.playtimeHours,
+    this.recentPlaytimeHours,
+    this.logoUrl,
+    this.iconUrl,
+    required this.storeUrl,
+    this.initialPrice,
+    this.finalPrice,
+    this.initialPriceFormatted,
+    this.finalPriceFormatted,
+    this.discountPercent = 0,
+    this.isFree = false,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'appId': appId,
+      'name': name,
+      'playtimeHours': playtimeHours,
+      'recentPlaytimeHours': recentPlaytimeHours,
+      'logoUrl': logoUrl,
+      'iconUrl': iconUrl,
+      'storeUrl': storeUrl,
+      'initialPrice': initialPrice,
+      'finalPrice': finalPrice,
+      'initialPriceFormatted': initialPriceFormatted,
+      'finalPriceFormatted': finalPriceFormatted,
+      'discountPercent': discountPercent,
+      'isFree': isFree,
+    };
+  }
+}
+
+/// Thống kê thư viện Steam (tương ứng SteamLibraryStats trong steam-api-test)
+class SteamLibraryStats {
+  int totalGamesCount;
+  double totalPlaytimeHours;
+  double totalPlaytimeDays;
+  num totalInitialPrice;
+  num totalCurrentPrice;
+  String totalInitialPriceFormatted;
+  String totalCurrentPriceFormatted;
+  String currency;
+  String costPerHour;
+  int gamesCountCalculated;
+  String? note;
+
+  SteamLibraryStats({
+    this.totalGamesCount = 0,
+    this.totalPlaytimeHours = 0.0,
+    this.totalPlaytimeDays = 0.0,
+    this.totalInitialPrice = 0,
+    this.totalCurrentPrice = 0,
+    this.totalInitialPriceFormatted = '0 ₫',
+    this.totalCurrentPriceFormatted = '0 ₫',
+    this.currency = 'VND',
+    this.costPerHour = '0 ₫/h',
+    this.gamesCountCalculated = 0,
+    this.note,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'totalGamesCount': totalGamesCount,
+      'totalPlaytimeHours': totalPlaytimeHours,
+      'totalPlaytimeDays': totalPlaytimeDays,
+      'totalInitialPrice': totalInitialPrice,
+      'totalCurrentPrice': totalCurrentPrice,
+      'totalInitialPriceFormatted': totalInitialPriceFormatted,
+      'totalCurrentPriceFormatted': totalCurrentPriceFormatted,
+      'currency': currency,
+      'costPerHour': costPerHour,
+      'gamesCountCalculated': gamesCountCalculated,
+      'note': note,
+    };
+  }
+}
+
+/// Kết quả tổng hợp thông tin tài khoản Steam
 class SteamCalculationResult {
   final String profileName;
   final String steamId;
   final int steamLevel;
+  final int badgesCount;
+  final String? realName;
   final String? avatarUrl;
+  final String? avatarMedium;
+  final String? avatarFull;
+  final String? customUrl;
+  final String? onlineState;
+  final String? stateMessage;
+  final String? privacyState;
+  final int? visibilityState;
+  final String? summary;
   final String totalValue;
   final String lowestPrice;
   final dynamic gamesOwned;
@@ -13,12 +122,24 @@ class SteamCalculationResult {
   final String pricePerHour;
   final String vacStatus;
   final String? statusNote;
+  final SteamLibraryStats? stats;
+  final List<SteamGameItem> games;
 
   const SteamCalculationResult({
     required this.profileName,
     required this.steamId,
     required this.steamLevel,
+    this.badgesCount = 0,
+    this.realName,
     this.avatarUrl,
+    this.avatarMedium,
+    this.avatarFull,
+    this.customUrl,
+    this.onlineState,
+    this.stateMessage,
+    this.privacyState,
+    this.visibilityState,
+    this.summary,
     required this.totalValue,
     required this.lowestPrice,
     required this.gamesOwned,
@@ -26,6 +147,8 @@ class SteamCalculationResult {
     required this.pricePerHour,
     required this.vacStatus,
     this.statusNote,
+    this.stats,
+    this.games = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -33,7 +156,17 @@ class SteamCalculationResult {
       'profileName': profileName,
       'steamId': steamId,
       'steamLevel': steamLevel,
+      'badgesCount': badgesCount,
+      'realName': realName,
       'avatarUrl': avatarUrl,
+      'avatarMedium': avatarMedium,
+      'avatarFull': avatarFull,
+      'customUrl': customUrl,
+      'onlineState': onlineState,
+      'stateMessage': stateMessage,
+      'privacyState': privacyState,
+      'visibilityState': visibilityState,
+      'summary': summary,
       'totalValue': totalValue,
       'lowestPrice': lowestPrice,
       'gamesOwned': gamesOwned,
@@ -41,28 +174,32 @@ class SteamCalculationResult {
       'pricePerHour': pricePerHour,
       'vacStatus': vacStatus,
       'statusNote': statusNote,
+      'stats': stats?.toMap(),
+      'games': games.map((g) => g.toMap()).toList(),
     };
   }
 }
 
 class SteamService {
-  static final Map<String, String> _dnsCache = {};
+  static final Map<String, List<String>> _dnsCache = {};
   static final Map<String, num> _appPriceCache = {};
 
-  /// Resolve hostname using Cloudflare & Google DNS-over-HTTPS (DoH)
-  /// Crucial for networks/ISPs (such as in Vietnam) that block or poison Steam DNS.
-  static Future<String?> _resolveHostWithDoH(String host) async {
-    if (_dnsCache.containsKey(host)) return _dnsCache[host];
+  /// Phân giải IP bằng Google DoH & Cloudflare DoH (hỗ trợ vượt chặn DNS tại VN)
+  static Future<List<String>> _resolveHostAllIps(String host) async {
+    if (_dnsCache.containsKey(host) && _dnsCache[host]!.isNotEmpty) {
+      return _dnsCache[host]!;
+    }
 
     final dohEndpoints = [
-      'https://1.1.1.1/dns-query?name=$host&type=A',
       'https://8.8.8.8/resolve?name=$host&type=A',
+      'https://1.1.1.1/dns-query?name=$host&type=A',
     ];
 
     for (final endpoint in dohEndpoints) {
       try {
         final client = HttpClient();
         client.connectionTimeout = const Duration(seconds: 4);
+        client.badCertificateCallback = (cert, host, port) => true;
         final request = await client.getUrl(Uri.parse(endpoint));
         request.headers.set('accept', 'application/dns-json');
         final response = await request.close();
@@ -71,458 +208,768 @@ class SteamService {
           final json = jsonDecode(body);
           final answers = json['Answer'] as List?;
           if (answers != null && answers.isNotEmpty) {
-            final ip = answers.firstWhere(
-              (a) => a['type'] == 1,
-              orElse: () => null,
-            )?['data'] as String?;
-            if (ip != null && ip.isNotEmpty) {
-              _dnsCache[host] = ip;
-              client.close();
-              return ip;
+            final ips = answers
+                .where((a) => a['type'] == 1 && a['data'] != null)
+                .map((a) => a['data'] as String)
+                .toList();
+            client.close();
+            if (ips.isNotEmpty) {
+              _dnsCache[host] = ips;
+              return ips;
             }
           }
         }
         client.close();
       } catch (_) {}
     }
-    return null;
+    return [];
   }
 
-  /// Perform a resilient HTTP GET request with automatic DoH & SNI fallback.
+  /// Request HTTP GET linh hoạt với fallback DoH + SNI cho Steam tại Việt Nam
   static Future<String> httpGet(String urlString) async {
     final uri = Uri.parse(urlString);
 
-    // 1. Try standard HttpClient first
+    // 1. Thử HttpClient chuẩn trước
     try {
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 8);
+      client.connectionTimeout = const Duration(seconds: 5);
+      client.badCertificateCallback = (cert, host, port) => true;
       final req = await client.getUrl(uri);
-      req.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
+      req.headers.set(
+        'User-Agent',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      );
+      req.headers.set('Accept-Language', 'en-US,en;q=0.9');
       final res = await req.close();
       if (res.statusCode == 301 || res.statusCode == 302) {
         final location = res.headers.value('location');
         client.close();
         if (location != null && location.isNotEmpty) {
-          final redirectUri = uri.resolve(location);
-          return await httpGet(redirectUri.toString());
+          return await httpGet(uri.resolve(location).toString());
         }
       }
       final body = await res.transform(utf8.decoder).join();
       client.close();
-      return body;
-    } catch (_) {
-      // 2. Fallback to connecting via DoH IP + SecureSocket with correct SNI host
-      final ip = await _resolveHostWithDoH(uri.host);
-      if (ip == null) {
-        throw Exception('Không thể phân giải tên miền: ${uri.host}');
+      if (body.isNotEmpty &&
+          !body.contains('Access Blocked') &&
+          !body.contains('FortiGuard')) {
+        return body;
       }
+    } catch (_) {}
 
-      final port = uri.hasPort ? uri.port : (uri.scheme == 'http' ? 80 : 443);
-      final rawSocket = await Socket.connect(ip, port, timeout: const Duration(seconds: 10));
-
-      Socket socket = rawSocket;
-      if (uri.scheme == 'https') {
-        socket = await SecureSocket.secure(
-          rawSocket,
-          host: uri.host, // Preserves SNI for Steam servers
-        );
-      }
-
-      final path = uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
-      final request = 'GET $path HTTP/1.1\r\n'
-          'Host: ${uri.host}\r\n'
-          'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n'
-          'Connection: close\r\n\r\n';
-
-      socket.write(request);
-      await socket.flush();
-
-      final rawResponse = await utf8.decoder.bind(socket).join();
-      await socket.close();
-
-      // Check HTTP redirect in raw headers
-      if (rawResponse.startsWith('HTTP/1.1 301') || rawResponse.startsWith('HTTP/1.1 302')) {
-        final locMatch = RegExp(r'Location:\s*([^\r\n]+)', caseSensitive: false).firstMatch(rawResponse);
-        if (locMatch != null) {
-          final loc = locMatch.group(1)!.trim();
-          final redirectUri = uri.resolve(loc);
-          return await httpGet(redirectUri.toString());
-        }
-      }
-
-      final splitIndex = rawResponse.indexOf('\r\n\r\n');
-      if (splitIndex != -1) {
-        return rawResponse.substring(splitIndex + 4);
-      }
-      return rawResponse;
+    // 2. Fallback sử dụng IP phân giải qua DoH kết nối Socket bảo lưu SNI
+    final ips = await _resolveHostAllIps(uri.host);
+    if (ips.isEmpty) {
+      throw Exception('Không thể phân giải tên miền: ${uri.host}');
     }
+
+    for (final ip in ips) {
+      try {
+        final port = uri.hasPort ? uri.port : (uri.scheme == 'http' ? 80 : 443);
+        final rawSocket = await Socket.connect(
+          ip,
+          port,
+          timeout: const Duration(seconds: 4),
+        );
+        Socket socket = rawSocket;
+        if (uri.scheme == 'https') {
+          socket = await SecureSocket.secure(
+            rawSocket,
+            host: uri.host,
+            onBadCertificate: (cert) => true,
+          );
+        }
+
+        final path = uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
+        final request = 'GET $path HTTP/1.1\r\n'
+            'Host: ${uri.host}\r\n'
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n'
+            'Accept-Language: en-US,en;q=0.9\r\n'
+            'Connection: close\r\n\r\n';
+
+        socket.write(request);
+        await socket.flush();
+
+        final rawResponse = await utf8.decoder.bind(socket).join();
+        await socket.close();
+
+        if (rawResponse.startsWith('HTTP/1.1 301') ||
+            rawResponse.startsWith('HTTP/1.1 302')) {
+          final locMatch = RegExp(
+            r'Location:\s*([^\r\n]+)',
+            caseSensitive: false,
+          ).firstMatch(rawResponse);
+          if (locMatch != null) {
+            final loc = locMatch.group(1)!.trim();
+            return await httpGet(uri.resolve(loc).toString());
+          }
+        }
+
+        final splitIndex = rawResponse.indexOf('\r\n\r\n');
+        final body = splitIndex != -1
+            ? rawResponse.substring(splitIndex + 4)
+            : rawResponse;
+        if (body.isNotEmpty &&
+            !body.contains('Access Blocked') &&
+            !body.contains('FortiGuard')) {
+          return body;
+        }
+      } catch (_) {}
+    }
+
+    throw Exception('Không thể kết nối đến Steam (${uri.host}).');
   }
 
-  /// Parses various Steam ID formats into SteamID64
-  static Future<String?> resolveSteamId(String input, {String? apiKey}) async {
-    var trimmed = input.trim();
-    if (trimmed.endsWith('/')) {
-      trimmed = trimmed.substring(0, trimmed.length - 1);
+  /// Xây dựng URL XML tương tự buildSteamXmlUrl trong steam-api-test
+  static String buildSteamXmlUrl(String input) {
+    var trimmed = input.trim().replaceAll(RegExp(r'/+$'), '');
+
+    final profileMatch = RegExp(
+      r'https?://steamcommunity\.com/profiles/(\d+)',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (profileMatch != null) {
+      return 'https://steamcommunity.com/profiles/${profileMatch.group(1)}/?xml=1';
     }
 
-    // Direct 17-digit SteamID64
-    final profileMatch = RegExp(r'steamcommunity\.com\/profiles\/(\d{17})').firstMatch(trimmed);
-    if (profileMatch != null) return profileMatch.group(1);
-    if (RegExp(r'^\d{17}$').hasMatch(trimmed)) return trimmed;
+    final vanityMatch = RegExp(
+      r'https?://steamcommunity\.com/id/([a-zA-Z0-9_-]+)',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (vanityMatch != null) {
+      return 'https://steamcommunity.com/id/${vanityMatch.group(1)}/?xml=1';
+    }
 
-    // SteamID3: [U:1:1208333168] or U:1:1208333168
+    if (RegExp(r'^\d{17}$').hasMatch(trimmed)) {
+      return 'https://steamcommunity.com/profiles/$trimmed/?xml=1';
+    }
+
+    // Xử lý SteamID3 hoặc SteamID2 nếu có
     final id3Match = RegExp(r'\[?U:1:(\d+)\]?').firstMatch(trimmed);
     if (id3Match != null) {
       final accId = BigInt.parse(id3Match.group(1)!);
       final base = BigInt.parse('76561197960265728');
-      return (base + accId).toString();
+      final steamId64 = (base + accId).toString();
+      return 'https://steamcommunity.com/profiles/$steamId64/?xml=1';
     }
 
-    // SteamID2: STEAM_0:0:12345 or STEAM_1:1:12345
     final id2Match = RegExp(r'STEAM_[0-1]:([0-1]):(\d+)').firstMatch(trimmed);
     if (id2Match != null) {
       final y = BigInt.parse(id2Match.group(1)!);
       final z = BigInt.parse(id2Match.group(2)!);
       final base = BigInt.parse('76561197960265728');
-      return (base + (z * BigInt.from(2)) + y).toString();
+      final steamId64 = (base + (z * BigInt.from(2)) + y).toString();
+      return 'https://steamcommunity.com/profiles/$steamId64/?xml=1';
     }
 
-    // Steam /user/ short URL
-    final userMatch = RegExp(r'steamcommunity\.com\/user\/([^\/\?#]+)').firstMatch(trimmed);
-    if (userMatch != null) {
-      try {
-        final profileUrl = 'https://steamcommunity.com/user/${userMatch.group(1)}';
-        final redirectPage = await httpGet(profileUrl);
-        final resolvedProfileMatch = RegExp(r'steamcommunity\.com\/profiles\/(\d{17})').firstMatch(redirectPage);
-        if (resolvedProfileMatch != null) return resolvedProfileMatch.group(1);
-      } catch (_) {}
+    return 'https://steamcommunity.com/id/$trimmed/?xml=1';
+  }
+
+  /// Trích xuất nội dung thẻ XML (hỗ trợ cả CDATA và text thông thường)
+  static String? _extractTagValue(String xml, String tag) {
+    final match = RegExp(
+      '<$tag>(?:<!\\[CDATA\\[(.*?)\\]\\]>|(.*?))<\\/$tag>',
+      dotAll: true,
+    ).firstMatch(xml);
+    if (match != null) {
+      return (match.group(1) ?? match.group(2))?.trim();
     }
-
-    // Vanity URL name
-    String? vanitySlug;
-    final idMatch = RegExp(r'steamcommunity\.com\/id\/([^\/\?#]+)').firstMatch(trimmed);
-    if (idMatch != null) {
-      vanitySlug = idMatch.group(1);
-    } else if (!trimmed.startsWith('http')) {
-      vanitySlug = trimmed;
-    }
-
-    if (vanitySlug != null) {
-      // 1. Try ResolveVanityURL if API key is provided
-      if (apiKey != null && apiKey.trim().isNotEmpty) {
-        try {
-          final resolveUrl = 'https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey.trim()}&vanityurl=$vanitySlug';
-          final jsonStr = await httpGet(resolveUrl);
-          final data = jsonDecode(jsonStr);
-          if (data['response']?['success'] == 1 && data['response']?['steamid'] != null) {
-            return data['response']['steamid'].toString();
-          }
-        } catch (_) {}
-      }
-
-      // 2. Fallback to public XML lookup
-      try {
-        final xml = await httpGet('https://steamcommunity.com/id/$vanitySlug/?xml=1');
-        final xmlMatch = RegExp(r'<steamID64>(\d{17})<\/steamID64>').firstMatch(xml);
-        if (xmlMatch != null) {
-          return xmlMatch.group(1);
-        }
-      } catch (_) {}
-    }
-
     return null;
   }
 
-  /// Calculates real account stats using Steam Web API & Steam Store API
+  /// Lấy dữ liệu hồ sơ và tính toán giá trị tài khoản (Port toàn bộ từ SteamApiService.java)
   static Future<SteamCalculationResult> calculateAccount({
     required String input,
     String? apiKey,
     required String currencyName,
   }) async {
-    final cleanKey = (apiKey != null && apiKey.trim().isNotEmpty) ? apiKey.trim() : null;
-    final steamId = await resolveSteamId(input, apiKey: cleanKey);
-
-    if (steamId == null) {
-      throw Exception('Không thể tìm thấy hoặc nhận dạng tài khoản Steam từ thông tin đã nhập.');
+    if (input.trim().isEmpty) {
+      throw Exception('Vui lòng cung cấp Steam URL hoặc SteamID');
     }
 
+    final targetXmlUrl = buildSteamXmlUrl(input);
+    final xmlBody = await httpGet(targetXmlUrl);
+
+    // Kiểm tra lỗi từ XML
+    if (xmlBody.contains('<error>') || xmlBody.startsWith('<response>')) {
+      final errorMsg = _extractTagValue(xmlBody, 'error');
+      throw Exception(errorMsg ?? 'Không tìm thấy hồ sơ Steam hợp lệ');
+    }
+
+    // 1. Phân tích XML Profile
+    final steamId64 = _extractTagValue(xmlBody, 'steamID64') ?? '';
+    final personaName = _extractTagValue(xmlBody, 'steamID') ?? 'Steam User';
+    final realName = _extractTagValue(xmlBody, 'realname');
+    final customUrl = _extractTagValue(xmlBody, 'customURL');
+    final onlineState = _extractTagValue(xmlBody, 'onlineState');
+    final stateMessage = _extractTagValue(xmlBody, 'stateMessage');
+    final privacyState = _extractTagValue(xmlBody, 'privacyState');
+    final visibilityStateStr = _extractTagValue(xmlBody, 'visibilityState');
+    final avatar = _extractTagValue(xmlBody, 'avatarIcon');
+    final avatarMedium = _extractTagValue(xmlBody, 'avatarMedium');
+    final avatarFull = _extractTagValue(xmlBody, 'avatarFull');
+    final summary = _extractTagValue(xmlBody, 'summary');
+    final vacBanned = _extractTagValue(xmlBody, 'vacBanned') == '1';
+
+    int? visibilityState;
+    if (visibilityStateStr != null && visibilityStateStr.isNotEmpty) {
+      visibilityState = int.tryParse(visibilityStateStr);
+    }
+
+    // Parse danh sách mostPlayedGames từ XML (kể cả khi không có API key)
+    final List<SteamGameItem> xmlGames = [];
+    final mostPlayedMatches = RegExp(
+      r'<mostPlayedGame>([\s\S]*?)<\/mostPlayedGame>',
+    ).allMatches(xmlBody);
+
+    for (final m in mostPlayedMatches) {
+      final gameXml = m.group(1)!;
+      final gameName = _extractTagValue(gameXml, 'gameName') ?? 'Steam Game';
+      final gameLink = _extractTagValue(gameXml, 'gameLink') ?? '';
+      final gameIcon = _extractTagValue(gameXml, 'gameIcon');
+      final gameLogo = _extractTagValue(gameXml, 'gameLogo');
+      final hoursPlayedStr = _extractTagValue(gameXml, 'hoursPlayed');
+      final hoursOnRecordStr = _extractTagValue(gameXml, 'hoursOnRecord');
+
+      final appIdMatch = RegExp(r'/app/(\d+)').firstMatch(gameLink);
+      if (appIdMatch == null) continue;
+      final appId = int.parse(appIdMatch.group(1)!);
+
+      final playtimeHours = double.tryParse(
+            (hoursOnRecordStr ?? '0').replaceAll(',', '').trim(),
+          ) ??
+          0.0;
+      final recentHours = double.tryParse(
+        (hoursPlayedStr ?? '0').replaceAll(',', '').trim(),
+      );
+
+      xmlGames.add(SteamGameItem(
+        appId: appId,
+        name: gameName,
+        playtimeHours: playtimeHours,
+        recentPlaytimeHours: recentHours,
+        iconUrl: gameIcon,
+        logoUrl: gameLogo,
+        storeUrl: gameLink.isNotEmpty
+            ? gameLink
+            : 'https://store.steampowered.com/app/$appId',
+      ));
+    }
+
+    // 2. Scrape Profile HTML để lấy Level, Badges count và Total games count
+    int steamLevel = 0;
+    int badgesCount = 0;
+    int? htmlTotalGames;
+
+    if (steamId64.isNotEmpty) {
+      try {
+        final profileHtmlUrl = 'https://steamcommunity.com/profiles/$steamId64';
+        final html = await httpGet(profileHtmlUrl);
+
+        // Level
+        final lvlMatch = RegExp(r'class="friendPlayerLevelNum">(\d+)</span>')
+            .firstMatch(html);
+        if (lvlMatch != null) {
+          steamLevel = int.tryParse(lvlMatch.group(1)!) ?? 0;
+        }
+
+        // Tổng số game: <a href=".../games/?tab=all">...<span class="profile_count_link_total">173</span>
+        final gamesMatch = RegExp(
+          r'href="[^"]*?/games/[^"]*"[\s\S]*?class="profile_count_link_total">\s*([\d,]+)',
+          caseSensitive: false,
+        ).firstMatch(html);
+        if (gamesMatch != null) {
+          htmlTotalGames = int.tryParse(
+            gamesMatch.group(1)!.replaceAll(',', '').trim(),
+          );
+        }
+
+        // Số lượng Badges: <a href=".../badges/?">...<span class="profile_count_link_total">21</span>
+        final badgesMatch = RegExp(
+          r'href="[^"]*?/badges/?"[\s\S]*?class="profile_count_link_total">\s*([\d,]+)',
+          caseSensitive: false,
+        ).firstMatch(html);
+        if (badgesMatch != null) {
+          badgesCount = int.tryParse(
+                badgesMatch.group(1)!.replaceAll(',', '').trim(),
+              ) ??
+              0;
+        }
+      } catch (_) {}
+    }
+
+    // 3. Lấy toàn bộ game qua Steam Web API GetOwnedGames (nếu người dùng cung cấp API Key)
+    final cleanApiKey = apiKey?.trim();
+
+    List<SteamGameItem> games = [];
+    bool fetchedFromWebApi = false;
+
+    if (cleanApiKey != null && cleanApiKey.isNotEmpty && steamId64.isNotEmpty) {
+      try {
+        final apiUrl =
+            'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=$cleanApiKey&steamid=$steamId64&include_appinfo=1&include_played_free_games=1';
+        final jsonStr = await httpGet(apiUrl);
+        final data = jsonDecode(jsonStr);
+        final rawGames = data['response']?['games'] as List?;
+
+        if (rawGames != null && rawGames.isNotEmpty) {
+          for (final g in rawGames) {
+            final appId = g['appid'] as int;
+            final name = (g['name'] as String?)?.trim();
+            if (name == null || name.isEmpty) continue;
+            final playtimeMinutes = g['playtime_forever'] as int? ?? 0;
+            final playtimeHours =
+                ((playtimeMinutes / 60.0) * 10).round() / 10.0;
+            final iconHash = (g['img_icon_url'] as String?) ?? '';
+            final iconUrl = iconHash.isNotEmpty
+                ? 'https://media.steampowered.com/steamcommunity/public/images/apps/$appId/$iconHash.jpg'
+                : null;
+            final logoUrl =
+                'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_184x69.jpg';
+
+            games.add(SteamGameItem(
+              appId: appId,
+              name: name,
+              playtimeHours: playtimeHours,
+              iconUrl: iconUrl,
+              logoUrl: logoUrl,
+              storeUrl: 'https://store.steampowered.com/app/$appId',
+            ));
+          }
+          fetchedFromWebApi = true;
+        }
+      } catch (_) {}
+    }
+
+    // Fallback nếu không có Web API hoặc Web API trả về rỗng
+    if (!fetchedFromWebApi || games.isEmpty) {
+      games = xmlGames;
+    }
+
+    // Sắp xếp game theo số giờ chơi giảm dần
+    games.sort((a, b) => b.playtimeHours.compareTo(a.playtimeHours));
+
+    // 4. Lấy giá từ Steam Store API theo batch 30 appid (như steam-api-test)
     final currencyCode = currencyName == 'Vietnamese Dong' ? 'VND' : 'USD';
     final storeCountryCode = currencyCode == 'VND' ? 'vn' : 'us';
 
-    String profileName = 'Steam User';
-    String? avatarUrl;
-    int steamLevel = 0;
-    String vacStatus = 'In good standing';
-    int gamesOwned = 0;
-    int totalPlaytimeMinutes = 0;
-    List<Map<String, dynamic>> gamesList = [];
+    await _fetchStorePrices(games, storeCountryCode, currencyCode);
+
+    // 5. Tính toán thống kê thư viện
+    final stats = _calculateLibraryStats(
+      games: games,
+      totalGamesCount: htmlTotalGames,
+      currencyCode: currencyCode,
+      hasApiKey: fetchedFromWebApi,
+    );
+
     String? statusNote;
-
-    // 1. Fetch user profile summary & level
-    if (cleanKey != null) {
-      // Using Steam Web API
-      try {
-        final summaryUrl = 'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=$cleanKey&steamids=$steamId';
-        final summaryStr = await httpGet(summaryUrl);
-        final summaryData = jsonDecode(summaryStr);
-        final players = summaryData['response']?['players'] as List?;
-        if (players != null && players.isNotEmpty) {
-          final player = players.first;
-          profileName = player['personaname'] ?? profileName;
-          avatarUrl = player['avatarfull'] ?? player['avatarmedium'] ?? player['avatar'];
-          final visibility = player['communityvisibilitystate'] ?? 0;
-          if (visibility != 3) {
-            statusNote = 'Hồ sơ Steam đang ở chế độ Riêng tư (Private). Một số thông tin có thể không hiển thị đầy đủ.';
-          }
-        }
-      } catch (_) {}
-
-      // Fetch Steam level
-      try {
-        final levelUrl = 'https://api.steampowered.com/IPlayerService/GetSteamLevel/v1/?key=$cleanKey&steamid=$steamId';
-        final levelStr = await httpGet(levelUrl);
-        final levelData = jsonDecode(levelStr);
-        steamLevel = levelData['response']?['player_level'] ?? 0;
-      } catch (_) {}
-
-      // Fetch VAC Bans
-      try {
-        final bansUrl = 'https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=$cleanKey&steamids=$steamId';
-        final bansStr = await httpGet(bansUrl);
-        final bansData = jsonDecode(bansStr);
-        final players = bansData['players'] as List?;
-        if (players != null && players.isNotEmpty) {
-          final ban = players.first;
-          final isVacBanned = ban['VACBanned'] == true;
-          final numBans = ban['NumberOfVACBans'] ?? 0;
-          vacStatus = isVacBanned ? 'Banned ($numBans VAC ban)' : 'In good standing';
-        }
-      } catch (_) {}
-
-      // Fetch Owned Games
-      try {
-        final gamesUrl = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=$cleanKey&steamid=$steamId&include_appinfo=1&include_played_free_games=1';
-        final gamesStr = await httpGet(gamesUrl);
-        final gamesData = jsonDecode(gamesStr);
-        final response = gamesData['response'];
-        if (response != null) {
-          gamesOwned = response['game_count'] ?? 0;
-          final games = response['games'] as List?;
-          if (games != null) {
-            for (final g in games) {
-              final playtime = g['playtime_forever'] as int? ?? 0;
-              totalPlaytimeMinutes += playtime;
-              gamesList.add({
-                'appid': g['appid'],
-                'name': g['name'] ?? '',
-                'playtime': playtime,
-              });
-            }
-          }
-        }
-      } catch (_) {}
-    } else {
-      // Fallback: Fetch Public XML profile if no API key provided
-      try {
-        final xml = await httpGet('https://steamcommunity.com/profiles/$steamId/?xml=1');
-        final nameMatch = RegExp(r'<steamID><!\[CDATA\[(.*?)\]\]><\/steamID>').firstMatch(xml);
-        if (nameMatch != null) profileName = nameMatch.group(1)!;
-
-        final avatarMatch = RegExp(r'<avatarFull><!\[CDATA\[(.*?)\]\]><\/avatarFull>').firstMatch(xml);
-        if (avatarMatch != null) avatarUrl = avatarMatch.group(1);
-
-        final vacMatch = RegExp(r'<vacBanned>(\d+)<\/vacBanned>').firstMatch(xml);
-        if (vacMatch != null && vacMatch.group(1) == '1') {
-          vacStatus = 'Banned (1 VAC ban)';
-        }
-
-        statusNote = 'Bạn chưa nhập Steam Web API Key. Vui lòng nhập API Key để lấy danh sách game và tính giá trị tài khoản chính xác!';
-      } catch (_) {}
+    if (visibilityState != null && visibilityState != 3) {
+      statusNote =
+          'Hồ sơ Steam đang ở chế độ Riêng tư (Private). Một số thông tin có thể không hiển thị đầy đủ.';
+    } else if (!fetchedFromWebApi) {
+      statusNote = stats.note;
     }
 
-    // 2. Calculate account value and game pricing
-    double totalValueNum = 0.0;
-    double lowestPriceNum = 0.0;
-
-    if (gamesList.isNotEmpty) {
-      // Sort games by playtime descending
-      gamesList.sort((a, b) => (b['playtime'] as int).compareTo(a['playtime'] as int));
-
-      // Batch query prices for top played games (up to 20 games to avoid strict rate limits)
-      final sampleCount = gamesList.length < 20 ? gamesList.length : 20;
-      final gamesToPrice = gamesList.take(sampleCount).toList();
-
-      int pricedGamesCount = 0;
-      double pricedGamesTotal = 0;
-      double pricedGamesDiscountTotal = 0;
-
-      for (final game in gamesToPrice) {
-        final appId = game['appid'].toString();
-        final cacheKey = '$appId-$currencyCode';
-
-        num? initialPrice;
-        num? finalPrice;
-
-        if (_appPriceCache.containsKey(cacheKey)) {
-          initialPrice = _appPriceCache[cacheKey];
-          finalPrice = initialPrice;
-        } else {
-          try {
-            final storeUrl = 'https://store.steampowered.com/api/appdetails?appids=$appId&cc=$storeCountryCode&filters=price_overview';
-            final storeStr = await httpGet(storeUrl);
-            final storeJson = jsonDecode(storeStr);
-            final appData = storeJson[appId];
-            if (appData != null && appData['success'] == true) {
-              final overview = appData['data']?['price_overview'];
-              if (overview != null) {
-                // Steam store returns minor currency units (e.g., cents or minor VND units)
-                initialPrice = (overview['initial'] as num?) ?? (overview['final'] as num?);
-                finalPrice = overview['final'] as num?;
-                if (currencyCode == 'USD' && initialPrice != null) {
-                  initialPrice = initialPrice / 100.0;
-                  finalPrice = (finalPrice ?? 0) / 100.0;
-                } else if (currencyCode == 'VND' && initialPrice != null) {
-                  // In VND, Steam returns minor units x100 (e.g. 14000000 = 140.000₫)
-                  initialPrice = initialPrice / 100.0;
-                  finalPrice = (finalPrice ?? 0) / 100.0;
-                }
-                if (initialPrice != null && initialPrice > 0) {
-                  _appPriceCache[cacheKey] = initialPrice;
-                }
-              }
-            }
-          } catch (_) {}
-        }
-
-        if (initialPrice != null && initialPrice > 0) {
-          pricedGamesCount++;
-          pricedGamesTotal += initialPrice;
-          pricedGamesDiscountTotal += (finalPrice ?? (initialPrice * 0.35));
-        }
-      }
-
-      if (pricedGamesCount > 0) {
-        final avgInitial = pricedGamesTotal / pricedGamesCount;
-        final avgDiscount = pricedGamesDiscountTotal / pricedGamesCount;
-
-        // Extrapolate for remaining games
-        final remainingGames = gamesList.length - pricedGamesCount;
-        totalValueNum = pricedGamesTotal + (remainingGames * avgInitial * 0.7); // 70% weight for back-catalog
-        lowestPriceNum = pricedGamesDiscountTotal + (remainingGames * avgDiscount * 0.7);
-      } else {
-        // Fallback realistic baseline if all sampled games were free-to-play
-        final estimatedPaid = (gamesOwned * 0.5).round();
-        if (currencyCode == 'VND') {
-          totalValueNum = (estimatedPaid * 250000.0);
-          lowestPriceNum = totalValueNum * 0.35;
-        } else {
-          totalValueNum = (estimatedPaid * 15.0);
-          lowestPriceNum = totalValueNum * 0.35;
-        }
-      }
-    }
-
-    final totalHours = (totalPlaytimeMinutes / 60.0);
-    double pricePerHourNum = 0.0;
-    if (totalHours > 0 && totalValueNum > 0) {
-      pricePerHourNum = totalValueNum / totalHours;
-    }
-
-    final formattedTotalValue = gamesOwned > 0 || cleanKey != null
-        ? _formatCurrency(totalValueNum, currencyCode)
-        : 'Cần API Key';
-
-    final formattedLowestPrice = gamesOwned > 0 || cleanKey != null
-        ? _formatCurrency(lowestPriceNum, currencyCode)
-        : 'Cần API Key';
-
-    final formattedPricePerHour = gamesOwned > 0 || cleanKey != null
-        ? _formatPricePerHour(pricePerHourNum, currencyCode)
-        : '—';
-
-    final formattedHours = gamesOwned > 0 || cleanKey != null
-        ? _formatHours(totalPlaytimeMinutes)
-        : 'Cần API Key';
-
-    final displayGamesCount = gamesOwned > 0 || cleanKey != null ? gamesOwned : 'Cần API Key';
+    final vacStatus = vacBanned ? 'Banned (1 VAC ban)' : 'In good standing';
 
     return SteamCalculationResult(
-      profileName: profileName,
-      steamId: steamId,
+      profileName: personaName,
+      steamId: steamId64,
       steamLevel: steamLevel,
-      avatarUrl: avatarUrl,
-      totalValue: formattedTotalValue,
-      lowestPrice: formattedLowestPrice,
-      gamesOwned: displayGamesCount,
-      hoursPlayed: formattedHours,
-      pricePerHour: formattedPricePerHour,
+      badgesCount: badgesCount,
+      realName: realName,
+      avatarUrl: avatarFull ?? avatarMedium ?? avatar,
+      avatarMedium: avatarMedium,
+      avatarFull: avatarFull,
+      customUrl: customUrl,
+      onlineState: onlineState,
+      stateMessage: stateMessage,
+      privacyState: privacyState,
+      visibilityState: visibilityState,
+      summary: summary,
+      totalValue: stats.totalInitialPriceFormatted,
+      lowestPrice: stats.totalCurrentPriceFormatted,
+      gamesOwned: stats.totalGamesCount,
+      hoursPlayed: '${stats.totalPlaytimeHours.toStringAsFixed(1)}h',
+      pricePerHour: stats.costPerHour,
       vacStatus: vacStatus,
       statusNote: statusNote,
+      stats: stats,
+      games: games,
     );
   }
 
-  static String _formatCurrency(num amount, String currencyCode) {
-    if (currencyCode == 'VND') {
-      final intVal = amount.round();
-      final str = intVal.toString();
-      final buffer = StringBuffer();
-      int count = 0;
-      for (int i = str.length - 1; i >= 0; i--) {
-        buffer.write(str[i]);
-        count++;
-        if (count % 3 == 0 && i != 0) {
-          buffer.write('.');
+  /// Truy vấn giá hàng loạt theo batch 30 game (đặc trưng từ steam-api-test)
+  static Future<void> _fetchStorePrices(
+    List<SteamGameItem> games,
+    String storeCountryCode,
+    String currencyCode,
+  ) async {
+    if (games.isEmpty) return;
+
+    // Lấy tối đa 60 game nhiều giờ chơi nhất để batch query tránh bị Store API rate-limit
+    final gamesToPrice = games.take(60).toList();
+    const batchSize = 30;
+
+    for (int i = 0; i < gamesToPrice.length; i += batchSize) {
+      final end = (i + batchSize < gamesToPrice.length)
+          ? i + batchSize
+          : gamesToPrice.length;
+      final batch = gamesToPrice.sublist(i, end);
+      final appIds = batch.map((g) => g.appId).join(',');
+
+      if (appIds.isEmpty) continue;
+
+      try {
+        final storeUrl =
+            'https://store.steampowered.com/api/appdetails?appids=$appIds&cc=$storeCountryCode&filters=price_overview';
+        final storeStr = await httpGet(storeUrl);
+        final storeData = jsonDecode(storeStr);
+
+        for (final game in batch) {
+          final appIdStr = game.appId.toString();
+          final cacheKey = '$appIdStr-$currencyCode';
+
+          if (_appPriceCache.containsKey(cacheKey)) {
+            final cachedInitial = _appPriceCache[cacheKey]!;
+            game.initialPrice = cachedInitial;
+            game.finalPrice = cachedInitial;
+            game.initialPriceFormatted = _formatAmount(cachedInitial, currencyCode);
+            game.finalPriceFormatted = _formatAmount(cachedInitial, currencyCode);
+            game.isFree = cachedInitial == 0;
+            continue;
+          }
+
+          if (storeData is Map && storeData.containsKey(appIdStr)) {
+            final appObj = storeData[appIdStr];
+            if (appObj is Map && appObj['success'] == true) {
+              final dataObj = appObj['data'];
+              if (dataObj is Map) {
+                final priceOverview = dataObj['price_overview'];
+                if (priceOverview is Map) {
+                  // Steam trả về đơn vị tiền tệ nhân 100
+                  final rawInitial = priceOverview['initial'] as num? ??
+                      priceOverview['final'] as num? ??
+                      0;
+                  final rawFinal = priceOverview['final'] as num? ?? 0;
+                  final discount =
+                      priceOverview['discount_percent'] as int? ?? 0;
+
+                  final initial = currencyCode == 'USD'
+                      ? rawInitial / 100.0
+                      : (rawInitial / 100).round();
+                  final finalPrice = currencyCode == 'USD'
+                      ? rawFinal / 100.0
+                      : (rawFinal / 100).round();
+
+                  game.initialPrice = initial;
+                  game.finalPrice = finalPrice;
+                  game.discountPercent = discount;
+                  game.initialPriceFormatted = _formatAmount(initial, currencyCode);
+                  game.finalPriceFormatted = _formatAmount(finalPrice, currencyCode);
+                  game.isFree = false;
+
+                  if (initial > 0) {
+                    _appPriceCache[cacheKey] = initial;
+                  }
+                  continue;
+                }
+              }
+            }
+          }
+
+          // Game miễn phí hoặc không còn kinh doanh
+          game.initialPrice = 0;
+          game.finalPrice = 0;
+          game.discountPercent = 0;
+          game.initialPriceFormatted = currencyCode == 'VND' ? 'Miễn phí' : 'Free';
+          game.finalPriceFormatted = currencyCode == 'VND' ? 'Miễn phí' : 'Free';
+          game.isFree = true;
         }
+      } catch (_) {
+        // Tiếp tục xử lý batch tiếp theo nếu một batch gặp lỗi
       }
-      return '${buffer.toString().split('').reversed.join('')} ₫';
-    } else {
-      final parts = amount.toStringAsFixed(2).split('.');
-      final intPart = parts[0];
-      final decPart = parts[1];
-      final buffer = StringBuffer();
-      int count = 0;
-      for (int i = intPart.length - 1; i >= 0; i--) {
-        buffer.write(intPart[i]);
-        count++;
-        if (count % 3 == 0 && i != 0) {
-          buffer.write(',');
-        }
-      }
-      return '\$${buffer.toString().split('').reversed.join('')}.$decPart';
     }
   }
 
-  static String _formatPricePerHour(num amount, String currencyCode) {
-    if (currencyCode == 'VND') {
-      final intVal = amount.round();
-      final str = intVal.toString();
-      final buffer = StringBuffer();
-      int count = 0;
-      for (int i = str.length - 1; i >= 0; i--) {
-        buffer.write(str[i]);
-        count++;
-        if (count % 3 == 0 && i != 0) {
-          buffer.write('.');
-        }
+  /// Tính toán số liệu thống kê thư viện giống hệt calculateLibraryStats trong steam-api-test
+  static SteamLibraryStats _calculateLibraryStats({
+    required List<SteamGameItem> games,
+    int? totalGamesCount,
+    required String currencyCode,
+    required bool hasApiKey,
+  }) {
+    double totalPlaytimeHours = 0.0;
+    num totalInitialPrice = 0;
+    num totalCurrentPrice = 0;
+    int calculatedCount = 0;
+
+    for (final game in games) {
+      totalPlaytimeHours += game.playtimeHours;
+      if (game.initialPrice != null) {
+        totalInitialPrice += game.initialPrice!;
       }
-      return '${buffer.toString().split('').reversed.join('')} ₫/h';
+      if (game.finalPrice != null) {
+        totalCurrentPrice += game.finalPrice!;
+      }
+      calculatedCount++;
+    }
+
+    totalPlaytimeHours = ((totalPlaytimeHours * 10).round()) / 10.0;
+    final totalPlaytimeDays = ((totalPlaytimeHours / 24.0) * 10).round() / 10.0;
+
+    final initialFormatted = _formatAmount(totalInitialPrice, currencyCode);
+    final currentFormatted = _formatAmount(totalCurrentPrice, currencyCode);
+
+    final resolvedTotalGames = (totalGamesCount != null && totalGamesCount > 0)
+        ? totalGamesCount
+        : games.length;
+
+    // Chi phí trên mỗi giờ chơi: Price / hour
+    String costPerHour;
+    if (totalPlaytimeHours > 0 && totalCurrentPrice > 0) {
+      if (currencyCode == 'USD') {
+        final cph = totalCurrentPrice / totalPlaytimeHours;
+        costPerHour = '\$${cph.toStringAsFixed(2)}/h';
+      } else {
+        final cph = (totalCurrentPrice / totalPlaytimeHours).round();
+        costPerHour = '${_formatVnd(cph)}/h';
+      }
     } else {
-      return '\$${amount.toStringAsFixed(2)}/h';
+      costPerHour = currencyCode == 'USD' ? '\$0.00/h' : '0 ₫/h';
+    }
+
+    final note = hasApiKey
+        ? 'Dữ liệu đầy đủ từ Steam Web API (bao gồm toàn bộ game và giá Steam Store)'
+        : 'Dữ liệu thống kê dựa trên các game công khai từ hồ sơ Steam. Cấu hình Steam API Key để quét toàn bộ 100% thư viện.';
+
+    return SteamLibraryStats(
+      totalGamesCount: resolvedTotalGames,
+      totalPlaytimeHours: totalPlaytimeHours,
+      totalPlaytimeDays: totalPlaytimeDays,
+      totalInitialPrice: totalInitialPrice,
+      totalCurrentPrice: totalCurrentPrice,
+      totalInitialPriceFormatted: initialFormatted,
+      totalCurrentPriceFormatted: currentFormatted,
+      currency: currencyCode,
+      costPerHour: costPerHour,
+      gamesCountCalculated: calculatedCount,
+      note: note,
+    );
+  }
+
+  static String _formatAmount(num amount, String currencyCode) {
+    if (currencyCode == 'USD') {
+      return '\$${amount.toStringAsFixed(2)}';
+    } else {
+      return _formatVnd(amount.round());
     }
   }
 
-  static String _formatHours(int totalMinutes) {
-    final hours = (totalMinutes / 60).round();
-    final str = hours.toString();
+  static String _formatVnd(num amount) {
+    final intVal = amount.round();
+    final str = intVal.toString();
     final buffer = StringBuffer();
     int count = 0;
     for (int i = str.length - 1; i >= 0; i--) {
       buffer.write(str[i]);
       count++;
       if (count % 3 == 0 && i != 0) {
-        buffer.write(',');
+        buffer.write('.');
       }
     }
-    return '${buffer.toString().split('').reversed.join('')}h';
+    return '${buffer.toString().split('').reversed.join('')} ₫';
+  }
+
+  static final Map<String, Uint8List> _imageCache = {};
+
+  /// Tải dữ liệu ảnh thông qua DoH + SNI socket (bỏ qua chặn DNS của nhà mạng VN)
+  static Future<Uint8List?> fetchImageBytes(String? url) async {
+    if (url == null || url.trim().isEmpty) return null;
+    final trimmed = url.trim();
+    if (_imageCache.containsKey(trimmed)) return _imageCache[trimmed];
+    try {
+      final bytes = await httpGetBytes(trimmed);
+      if (bytes.isNotEmpty) {
+        _imageCache[trimmed] = bytes;
+        return bytes;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Request HTTP GET lấy raw bytes cho hình ảnh, fallback DoH tự động
+  static Future<Uint8List> httpGetBytes(String urlString) async {
+    final uri = Uri.parse(urlString);
+
+    // 1. Thử HttpClient chuẩn trước
+    try {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 4);
+      client.badCertificateCallback = (cert, host, port) => true;
+      final req = await client.getUrl(uri);
+      req.headers.set(
+        'User-Agent',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      );
+      final res = await req.close();
+      if (res.statusCode == 301 || res.statusCode == 302) {
+        final loc = res.headers.value('location');
+        client.close();
+        if (loc != null && loc.isNotEmpty) {
+          return await httpGetBytes(uri.resolve(loc).toString());
+        }
+      }
+      final builder = BytesBuilder();
+      await for (final chunk in res) {
+        builder.add(chunk);
+      }
+      client.close();
+      final bytes = builder.toBytes();
+      if (bytes.isNotEmpty) return bytes;
+    } catch (_) {}
+
+    // 2. DoH + Socket fallback cho người dùng không bật 1.1.1.1
+    final ips = await _resolveHostAllIps(uri.host);
+    if (ips.isEmpty) throw Exception('Không thể phân giải: ${uri.host}');
+
+    for (final ip in ips) {
+      try {
+        final port = uri.hasPort ? uri.port : 443;
+        final rawSocket = await Socket.connect(
+          ip,
+          port,
+          timeout: const Duration(seconds: 4),
+        );
+        Socket socket = rawSocket;
+        if (uri.scheme == 'https') {
+          socket = await SecureSocket.secure(
+            rawSocket,
+            host: uri.host,
+            onBadCertificate: (cert) => true,
+          );
+        }
+
+        final path = uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
+        final request = 'GET $path HTTP/1.1\r\n'
+            'Host: ${uri.host}\r\n'
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n'
+            'Connection: close\r\n\r\n';
+
+        socket.write(request);
+        await socket.flush();
+
+        final builder = BytesBuilder();
+        await for (final chunk in socket) {
+          builder.add(chunk);
+        }
+        await socket.close();
+
+        final rawData = builder.toBytes();
+        for (int i = 0; i < rawData.length - 3; i++) {
+          if (rawData[i] == 13 &&
+              rawData[i + 1] == 10 &&
+              rawData[i + 2] == 13 &&
+              rawData[i + 3] == 10) {
+            final headerStr =
+                utf8.decode(rawData.sublist(0, i), allowMalformed: true);
+            if (headerStr.contains('301') || headerStr.contains('302')) {
+              final locMatch = RegExp(
+                r'Location:\s*([^\r\n]+)',
+                caseSensitive: false,
+              ).firstMatch(headerStr);
+              if (locMatch != null) {
+                return await httpGetBytes(
+                  uri.resolve(locMatch.group(1)!.trim()).toString(),
+                );
+              }
+            }
+            return rawData.sublist(i + 4);
+          }
+        }
+      } catch (_) {}
+    }
+
+    throw Exception('Không thể tải hình ảnh từ ${uri.host}');
+  }
+}
+
+/// Widget hiển thị ảnh Steam (Avatar, Game banner) tự động vượt chặn DNS nhà mạng
+class SteamImage extends StatefulWidget {
+  final String? url;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final Widget? errorWidget;
+
+  const SteamImage({
+    super.key,
+    required this.url,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.errorWidget,
+  });
+
+  @override
+  State<SteamImage> createState() => _SteamImageState();
+}
+
+class _SteamImageState extends State<SteamImage> {
+  Uint8List? _bytes;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  @override
+  void didUpdateWidget(covariant SteamImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _loadImage();
+    }
+  }
+
+  void _loadImage() async {
+    if (widget.url == null || widget.url!.trim().isEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final bytes = await SteamService.fetchImageBytes(widget.url!);
+    if (!mounted) return;
+    setState(() {
+      _bytes = bytes;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_bytes != null && _bytes!.isNotEmpty) {
+      return Image.memory(
+        _bytes!,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+      );
+    }
+    if (!_loading && widget.errorWidget != null) {
+      return widget.errorWidget!;
+    }
+    return widget.errorWidget ??
+        Container(
+          width: widget.width,
+          height: widget.height,
+          color: const Color(0xFF1F2937),
+          child: const Icon(
+            Icons.sports_esports,
+            size: 16,
+            color: Colors.white54,
+          ),
+        );
   }
 }

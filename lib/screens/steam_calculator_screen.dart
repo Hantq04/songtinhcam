@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/steam_service.dart';
+import 'steam_result_screen.dart';
 
 class SteamCalculatorScreen extends StatefulWidget {
   const SteamCalculatorScreen({super.key});
@@ -17,7 +18,6 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
   bool _isApiKeyObscured = true;
   String _selectedCurrency = 'Vietnamese Dong';
   bool _isLoading = false;
-  Map<String, dynamic>? _calculationResult;
 
   final List<Map<String, String>> _currencies = [
     {'name': 'Vietnamese Dong', 'code': 'VND', 'symbol': '₫'},
@@ -83,22 +83,17 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
 
       setState(() {
         _isLoading = false;
-        _calculationResult = result.toMap();
       });
 
-      if (result.statusNote != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF1E2838),
-            content: Text(
-              result.statusNote!,
-              style: const TextStyle(color: Color(0xFF93C5FD)),
-            ),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SteamResultScreen(
+            result: result,
+            currencyName: _selectedCurrency,
           ),
-        );
-      }
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -165,15 +160,23 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
                         const SizedBox(height: 24),
                         if (_isLoading)
                           const Padding(
-                            padding: EdgeInsets.all(24.0),
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF3880FF),
+                            padding: EdgeInsets.all(32.0),
+                            child: Column(
+                              children: [
+                                CircularProgressIndicator(
+                                  color: Color(0xFF3880FF),
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Đang tải dữ liệu hồ sơ và thư viện Steam...',
+                                  style: TextStyle(
+                                    color: Color(0xFF94A3B8),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
-                          )
-                        else if (_calculationResult != null) ...[
-                          _buildCalculationResultCard(),
-                          const SizedBox(height: 24),
-                        ],
+                          ),
                         _buildHelpfulNotes(),
                         const SizedBox(height: 24),
                         _buildFilterBadges(),
@@ -863,188 +866,6 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  /// Preview of Steam account calculation results
-  Widget _buildCalculationResultCard() {
-    final result = _calculationResult!;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF151E2B),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A3D55), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1A65C1).withValues(alpha: 0.12),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Profile header row
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: result['avatarUrl'] != null && (result['avatarUrl'] as String).isNotEmpty
-                    ? Image.network(
-                        result['avatarUrl'],
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF3880FF), Color(0xFF0056B3)],
-                            ),
-                          ),
-                          child: const Icon(Icons.person, color: Colors.white, size: 28),
-                        ),
-                      )
-                    : Container(
-                        width: 48,
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF3880FF), Color(0xFF0056B3)],
-                          ),
-                        ),
-                        child: const Icon(Icons.person, color: Colors.white, size: 28),
-                      ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      result['profileName'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      result['steamId'],
-                      style: const TextStyle(
-                        color: Color(0xFF8F9DAE),
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2B3E),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF3880FF)),
-                ),
-                child: Text(
-                  'Level ${result['steamLevel']}',
-                  style: const TextStyle(
-                    color: Color(0xFF60A5FA),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          const Divider(color: Color(0xFF223044), height: 1),
-          const SizedBox(height: 16),
-
-          // Stats grid
-          Wrap(
-            spacing: 24,
-            runSpacing: 16,
-            children: [
-              _buildStatItem('Account Value', result['totalValue'], const Color(0xFF4ADE80)),
-              _buildStatItem('Lowest Price', result['lowestPrice'], const Color(0xFF60A5FA)),
-              _buildStatItem('Games Owned', '${result['gamesOwned']}', Colors.white),
-              _buildStatItem('Hours Played', result['hoursPlayed'], Colors.white),
-              _buildStatItem('Price / Hour', result['pricePerHour'], const Color(0xFFFBBF24)),
-              _buildStatItem(
-                'VAC Status',
-                result['vacStatus'],
-                result['vacStatus'].toString().toLowerCase().contains('ban')
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFF34D399),
-              ),
-            ],
-          ),
-
-          if (result['statusNote'] != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF192233),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF2E415E)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 16, color: Color(0xFF60A5FA)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      result['statusNote'],
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, Color valueColor) {
-    return SizedBox(
-      width: 150,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF8F9DAE),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
