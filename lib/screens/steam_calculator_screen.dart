@@ -126,7 +126,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         duration: const Duration(seconds: 2),
         backgroundColor: const Color(0xFF1B2838),
         content: Text(
-          'Đã sao chép ví dụ: $url',
+          'Example copied: $url',
           style: const TextStyle(color: Color(0xFF66C0F4)),
         ),
         behavior: SnackBarBehavior.floating,
@@ -146,7 +146,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
           children: [
             SteamTopNavBar(
               isMobile: isMobile,
-              showMenuButton: true,
+              showMenuButton: false,
             ),
             Expanded(
               child: SingleChildScrollView(
