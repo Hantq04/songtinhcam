@@ -72,7 +72,13 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sao lưu dữ liệu tài khoản và lịch sử tính toán Steam
+  /// Cập nhật thời điểm backup thành công
+  void updateBackupTime([DateTime? time]) {
+    _lastBackupTime = time ?? DateTime.now();
+    notifyListeners();
+  }
+
+  /// Sao lưu dữ liệu tài khoản và lịch sử tính toán Steam (tương thích ngược)
   Future<bool> backupData() async {
     await Future.delayed(const Duration(milliseconds: 800));
     _lastBackupTime = DateTime.now();

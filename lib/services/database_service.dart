@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Service quản lý cơ sở dữ liệu SQLite cục bộ (không dùng DB bên ngoài)
@@ -104,6 +103,45 @@ class DatabaseService {
       }
     }
     return null;
+  }
+
+  /// Lấy toàn bộ danh sách profiles đã lưu
+  Future<List<Map<String, dynamic>>> getAllUserProfiles() async {
+    final db = await database;
+    final results = await db.query(
+      'user_profiles',
+      orderBy: 'updated_at DESC',
+    );
+    return results.map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  /// Import nhiều profile cùng lúc (dùng trong Backup & Restore)
+  Future<int> importUserProfiles(List<Map<String, dynamic>> profiles) async {
+    final db = await database;
+    int importedCount = 0;
+    await db.transaction((txn) async {
+      for (final profile in profiles) {
+        final email = (profile['email'] ?? '').toString().trim().toLowerCase();
+        final steamId = (profile['steam_id'] ?? profile['steamId'] ?? '').toString().trim();
+        if (email.isEmpty || steamId.isEmpty) continue;
+
+        await txn.insert(
+          'user_profiles',
+          {
+            'email': email,
+            'display_name': (profile['display_name'] ?? profile['displayName'])?.toString().trim(),
+            'steam_id': steamId,
+            'avatar_url': (profile['avatar_url'] ?? profile['avatarUrl'])?.toString().trim(),
+            'updated_at': profile['updated_at'] is int
+                ? profile['updated_at']
+                : DateTime.now().millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        importedCount++;
+      }
+    });
+    return importedCount;
   }
 
   /// Xóa profile nếu cần

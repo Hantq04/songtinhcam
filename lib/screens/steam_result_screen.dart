@@ -4,6 +4,7 @@ import '../services/steam_service.dart';
 import '../utils/steam_formatters.dart';
 import '../widgets/steam_top_nav_bar.dart';
 import 'steam_game_detail_screen.dart';
+import 'steam_all_games_screen.dart';
 
 class SteamResultScreen extends StatefulWidget {
   final SteamCalculationResult result;
@@ -760,19 +761,41 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                 letterSpacing: -0.2,
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E2838),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF2E3E55)),
-              ),
-              child: Text(
-                '${_result.games.length} games',
-                style: const TextStyle(
-                  color: Color(0xFF93C5FD),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SteamAllGamesScreen(
+                      games: _result.games,
+                      currencyName: _currencyName,
+                      profileName: _result.profileName,
+                    ),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E2838),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF38BDF8), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_result.games.length} games',
+                      style: const TextStyle(
+                        color: Color(0xFF93C5FD),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF38BDF8)),
+                  ],
                 ),
               ),
             ),
@@ -909,6 +932,34 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
             },
           ),
         ),
+        if (_result.games.length > 50) ...[
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SteamAllGamesScreen(
+                      games: _result.games,
+                      currencyName: _currencyName,
+                      profileName: _result.profileName,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.apps, size: 16, color: Color(0xFF38BDF8)),
+              label: Text(
+                'View all ${_result.games.length} games (with pagination) →',
+                style: const TextStyle(
+                  color: Color(0xFF38BDF8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

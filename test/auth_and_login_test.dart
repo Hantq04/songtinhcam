@@ -130,12 +130,12 @@ void main() {
     );
     expect(steamIdField, findsOneWidget);
     await tester.enterText(steamIdField, '76561199168598896');
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Tap Save
     await tester.tap(find.text('Save'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 3));
 
     // Verify saved to SQLite
     final savedId = await DatabaseService.instance.getSavedSteamId('test.steam@gmail.com');

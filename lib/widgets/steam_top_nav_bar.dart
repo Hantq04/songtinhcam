@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/backup_service.dart';
 import '../services/database_service.dart';
 import '../services/steam_service.dart';
 import '../screens/login_screen.dart';
@@ -384,141 +385,7 @@ class SteamTopNavBar extends StatelessWidget {
   void _showBackupDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext ctx) {
-        return ListenableBuilder(
-          listenable: AuthService.instance,
-          builder: (ctx, _) {
-            final auth = AuthService.instance;
-            final isLoggedIn = auth.isLoggedIn;
-
-            return Dialog(
-              backgroundColor: const Color(0xFF141C28),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Color(0xFF1E2A3C), width: 1.2),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(22.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E3A8A).withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.cloud_upload_outlined,
-                              color: Color(0xFF60A5FA),
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Data Backup',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        isLoggedIn
-                            ? 'Linked account: ${auth.userEmail}\nLast backup: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} - ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "No backup yet"}'
-                            : 'Sign in to sync and backup your Steam Calculator search history to drive.',
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 13,
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text(
-                              'Close',
-                              style: TextStyle(color: Color(0xFF94A3B8)),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (!isLoggedIn)
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1B62C0),
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const LoginScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text('Login'),
-                            )
-                          else
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF15803D),
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: () async {
-                                Navigator.pop(ctx);
-                                await AuthService.instance.backupData();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      backgroundColor: Color(0xFF15803D),
-                                      behavior: SnackBarBehavior.floating,
-                                      content: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                          SizedBox(width: 10),
-                                          Text(
-                                            'Data backup successful!',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                              child: const Text('Backup Now'),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (BuildContext ctx) => _BackupDialog(parentContext: context),
     );
   }
 
@@ -1025,6 +892,392 @@ class _ProfileDialogState extends State<_ProfileDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BackupDialog extends StatefulWidget {
+  final BuildContext parentContext;
+  const _BackupDialog({required this.parentContext});
+
+  @override
+  State<_BackupDialog> createState() => _BackupDialogState();
+}
+
+class _BackupDialogState extends State<_BackupDialog> {
+  bool _isLoading = false;
+  String? _loadingAction;
+
+  Future<void> _handleImport() async {
+    final messenger = ScaffoldMessenger.of(widget.parentContext);
+    setState(() {
+      _isLoading = true;
+      _loadingAction = 'Đang chọn file import...';
+    });
+
+    final result = await BackupService.instance.importBackup();
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _loadingAction = null;
+    });
+
+    if (result.cancelled) {
+      return;
+    }
+
+    if (result.success) {
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF15803D),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleExport() async {
+    final messenger = ScaffoldMessenger.of(widget.parentContext);
+    setState(() {
+      _isLoading = true;
+      _loadingAction = 'Đang chọn nơi lưu file...';
+    });
+
+    final result = await BackupService.instance.exportBackup();
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _loadingAction = null;
+    });
+
+    if (result.cancelled) {
+      return;
+    }
+
+    if (result.success) {
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF15803D),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: AuthService.instance,
+      builder: (ctx, _) {
+        final auth = AuthService.instance;
+        final isLoggedIn = auth.isLoggedIn;
+
+        return Dialog(
+          backgroundColor: const Color(0xFF141C28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFF1E2A3C), width: 1.2),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E3A8A).withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.backup_table_rounded,
+                          color: Color(0xFF60A5FA),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Data Backup & Restore',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Sao lưu & Khôi phục dữ liệu',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (isLoggedIn) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF1E293B)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.account_circle,
+                                  size: 16, color: Color(0xFF38BDF8)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  auth.userEmail ?? 'No email',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.history,
+                                  size: 15, color: Color(0xFF94A3B8)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Lần backup gần nhất: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour.toString().padLeft(2, '0')}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} - ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "Chưa sao lưu"}',
+                                style: const TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Bạn có thể xuất dữ liệu profile và Steam ID đã lưu ra file trên máy, hoặc chọn file từ máy để khôi phục lại khi cần.',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12.5,
+                        height: 1.45,
+                      ),
+                    ),
+                  ] else ...[
+                    const Text(
+                      'Đăng nhập để đồng bộ và sao lưu lịch sử tính toán, danh sách Steam ID và profile của bạn.',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                  if (_isLoading) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          _loadingAction ?? 'Đang xử lý...',
+                          style: const TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _isLoading ? null : () => Navigator.pop(ctx),
+                        child: const Text(
+                          'Đóng',
+                          style: TextStyle(color: Color(0xFF94A3B8)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (!isLoggedIn)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1B62C0),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(
+                              widget.parentContext,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text('Đăng nhập'),
+                        )
+                      else ...[
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF38BDF8)),
+                            foregroundColor: const Color(0xFF38BDF8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 9),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed:
+                              _isLoading ? null : _handleImport,
+                          icon: const Icon(Icons.file_upload_outlined, size: 16),
+                          label: const Text(
+                            'Import',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF15803D),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 9),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed:
+                              _isLoading ? null : _handleExport,
+                          icon:
+                              const Icon(Icons.file_download_outlined, size: 16),
+                          label: const Text(
+                            'Export',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
