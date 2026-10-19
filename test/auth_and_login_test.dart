@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:songtinhcam/main.dart';
 import 'package:songtinhcam/screens/login_screen.dart';
 import 'package:songtinhcam/services/auth_service.dart';
+import 'package:songtinhcam/services/database_service.dart';
 
 void main() {
-  setUp(() {
-    AuthService.instance.signOut();
+  Database? testDb;
+
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
   });
 
-  testWidgets('TopNavBar hides Menu button on CalculatorScreen and shows Backup/Login in user dropdown',
+  setUp(() async {
+    AuthService.instance.signOut();
+    testDb = await openDatabase(
+      inMemoryDatabasePath,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS user_profiles (
+            email TEXT PRIMARY KEY,
+            display_name TEXT,
+            steam_id TEXT,
+            avatar_url TEXT,
+            updated_at INTEGER
+          )
+        ''');
+      },
+    );
+    DatabaseService.instance.setDatabaseForTesting(testDb);
+  });
+
+  tearDown(() async {
+    await testDb?.close();
+    DatabaseService.instance.setDatabaseForTesting(null);
+  });
+
+  testWidgets(
+      'TopNavBar hides Menu button and shows Profile, Backup, Login in user dropdown',
       (WidgetTester tester) async {
     await tester.pumpWidget(const SteamApp());
     await tester.pumpAndSettle();
@@ -25,12 +56,14 @@ void main() {
     await tester.tap(userPillFinder);
     await tester.pumpAndSettle();
 
-    // Verify 'Backup' and 'Login' options are displayed
+    // Verify 'Profile', 'Backup' and 'Login' options are displayed
+    expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Backup'), findsOneWidget);
     expect(find.text('Login'), findsOneWidget);
   });
 
-  testWidgets('Selecting Login opens LoginScreen with only "Login with email" button and no manual text input',
+  testWidgets(
+      'Selecting Login opens LoginScreen with only "Login with email" button and no manual text input',
       (WidgetTester tester) async {
     await tester.pumpWidget(const SteamApp());
     await tester.pumpAndSettle();
@@ -63,5 +96,49 @@ void main() {
 
     expect(AuthService.instance.isLoggedIn, true);
     expect(AuthService.instance.userEmail, 'user.real@gmail.com');
+  });
+
+  testWidgets(
+      'Profile dialog shows user email, name, and saves SteamID to SQLite',
+      (WidgetTester tester) async {
+    AuthService.instance.setLoggedInUser(
+      email: 'test.steam@gmail.com',
+      displayName: 'Test Gamer',
+    );
+
+    await tester.pumpWidget(const SteamApp());
+    await tester.pumpAndSettle();
+
+    // Tap user button
+    await tester.tap(find.byTooltip('Account & Backup'));
+    await tester.pumpAndSettle();
+
+    // Tap 'Profile'
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    // Verify Profile Dialog opened
+    expect(find.text('User Profile'), findsOneWidget);
+    expect(find.text('Test Gamer'), findsOneWidget);
+    expect(find.text('test.steam@gmail.com'), findsOneWidget);
+    expect(find.text('Linked Steam ID'), findsOneWidget);
+
+    // Enter Steam ID in Dialog
+    final steamIdField = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
+    );
+    expect(steamIdField, findsOneWidget);
+    await tester.enterText(steamIdField, '76561199168598896');
+    await tester.pumpAndSettle();
+
+    // Tap Save
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Verify saved to SQLite
+    final savedId = await DatabaseService.instance.getSavedSteamId('test.steam@gmail.com');
+    expect(savedId, '76561199168598896');
   });
 }

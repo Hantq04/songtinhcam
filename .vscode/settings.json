@@ -1,3 +1,7 @@
 {
-    "cmake.sourceDirectory": "C:/Users/pc/Documents/Fork/songtinhcam/windows"
+    "cmake.sourceDirectory": "C:/Users/pc/Documents/Fork/songtinhcam/windows",
+    "git.autoRepositoryDetection": "subFolders",
+    "git.ignoredRepositories": [
+        "D:\\apps\\flutter"
+    ]
 }

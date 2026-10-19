@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
+import '../services/steam_service.dart';
 import '../screens/login_screen.dart';
+import '../screens/steam_result_screen.dart';
 
 /// Top Navigation Bar dùng chung cho cả CalculatorScreen và ResultScreen
 /// Thiết kế theo phong cách tối ưu của SteamDB
@@ -217,6 +220,28 @@ class SteamTopNavBar extends StatelessWidget {
                   const PopupMenuDivider(height: 1),
                 ],
                 const PopupMenuItem<String>(
+                  value: 'profile',
+                  height: 38,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline_rounded,
+                        size: 17,
+                        color: Color(0xFF38BDF8),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Profile',
+                        style: TextStyle(
+                          color: Color(0xFFE2E8F0),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
                   value: 'backup',
                   height: 38,
                   child: Row(
@@ -331,7 +356,9 @@ class SteamTopNavBar extends StatelessWidget {
   }
 
   void _handleUserAction(BuildContext context, String action) {
-    if (action == 'login') {
+    if (action == 'profile') {
+      _showProfileDialog(context);
+    } else if (action == 'login') {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -409,7 +436,7 @@ class SteamTopNavBar extends StatelessWidget {
                       Text(
                         isLoggedIn
                             ? 'Linked account: ${auth.userEmail}\nLast backup: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} - ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "No backup yet"}'
-                            : 'Sign in to sync and backup your Steam Calculator search history to the cloud.',
+                            : 'Sign in to sync and backup your Steam Calculator search history to drive.',
                         style: const TextStyle(
                           color: Color(0xFF94A3B8),
                           fontSize: 13,
@@ -495,6 +522,13 @@ class SteamTopNavBar extends StatelessWidget {
     );
   }
 
+  void _showProfileDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) => const _ProfileDialog(),
+    );
+  }
+
   Widget _buildNavLink(String title, {bool isActive = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -524,6 +558,473 @@ class SteamTopNavBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ProfileDialog extends StatefulWidget {
+  const _ProfileDialog();
+
+  @override
+  State<_ProfileDialog> createState() => _ProfileDialogState();
+}
+
+class _ProfileDialogState extends State<_ProfileDialog> {
+  final TextEditingController _steamIdController = TextEditingController();
+  bool _isSaving = false;
+  bool _isCalculating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedSteamId();
+  }
+
+  Future<void> _loadSavedSteamId() async {
+    final email = AuthService.instance.userEmail;
+    if (email != null && email.isNotEmpty) {
+      final savedId = await DatabaseService.instance.getSavedSteamId(email);
+      if (mounted && savedId != null) {
+        setState(() {
+          _steamIdController.text = savedId;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _steamIdController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveSteamId() async {
+    final email = AuthService.instance.userEmail;
+    if (email == null) return;
+
+    final steamId = _steamIdController.text.trim();
+    if (steamId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          content: Text('Please enter a Steam ID or profile URL to save.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await DatabaseService.instance.saveUserProfile(
+        email: email,
+        displayName: AuthService.instance.userName,
+        steamId: steamId,
+        avatarUrl: AuthService.instance.userAvatarUrl,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF15803D),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Steam ID saved to SQLite for $email',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          content: Text('Error saving to SQLite: $e'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _calculateAndNavigate() async {
+    final steamId = _steamIdController.text.trim();
+    if (steamId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFDC2626),
+          content: Text('Please enter a Steam ID first.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCalculating = true;
+    });
+
+    try {
+      final email = AuthService.instance.userEmail;
+      if (email != null) {
+        await DatabaseService.instance.saveUserProfile(
+          email: email,
+          displayName: AuthService.instance.userName,
+          steamId: steamId,
+          avatarUrl: AuthService.instance.userAvatarUrl,
+        );
+      }
+
+      final result = await SteamService.calculateAccount(
+        input: steamId,
+        currencyName: 'Vietnamese Dong',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isCalculating = false;
+      });
+
+      Navigator.pop(context);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SteamResultScreen(
+            result: result,
+            currencyName: 'Vietnamese Dong',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isCalculating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthService.instance;
+    final isLoggedIn = auth.isLoggedIn;
+    final email = auth.userEmail ?? '';
+    final name = auth.userName ?? 'User';
+
+    if (!isLoggedIn) {
+      return Dialog(
+        backgroundColor: const Color(0xFF141C28),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFF1E2A3C), width: 1.2),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.person_outline_rounded,
+                        color: Color(0xFF38BDF8),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'User Profile',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Please sign in to view your profile and link your Steam ID for automatic account calculation.',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(color: Color(0xFF94A3B8)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1B62C0),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text('Login'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Dialog(
+      backgroundColor: const Color(0xFF141C28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFF1E2A3C), width: 1.2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(22.0),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.person_outline_rounded,
+                      color: Color(0xFF38BDF8),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'User Profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Basic user info box (Name & Email)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B0F17),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF1E2838)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: const Color(0xFF1D4ED8),
+                      backgroundImage: auth.userAvatarUrl != null
+                          ? NetworkImage(auth.userAvatarUrl!)
+                          : null,
+                      child: auth.userAvatarUrl == null
+                          ? Text(
+                              name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            email,
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 12.5,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Steam ID input section
+              const Text(
+                'Linked Steam ID',
+                style: TextStyle(
+                  color: Color(0xFFCBD5E1),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B0F17),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF26374D)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: TextField(
+                    controller: _steamIdController,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                    ),
+                    cursorColor: const Color(0xFF38BDF8),
+                    decoration: const InputDecoration(
+                      hintText: 'SteamID64 or vanity profile URL',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                'Stored securely in local SQLite. When you log in, this Steam account will be calculated automatically.',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(color: Color(0xFF94A3B8)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_steamIdController.text.trim().isNotEmpty)
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF38BDF8),
+                        side: const BorderSide(color: Color(0xFF0284C7)),
+                      ),
+                      onPressed: (_isSaving || _isCalculating)
+                          ? null
+                          : _calculateAndNavigate,
+                      child: _isCalculating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.8,
+                                color: Color(0xFF38BDF8),
+                              ),
+                            )
+                          : const Text('Calculate'),
+                    ),
+                  if (_steamIdController.text.trim().isNotEmpty)
+                    const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B62C0),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: (_isSaving || _isCalculating) ? null : _saveSteamId,
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

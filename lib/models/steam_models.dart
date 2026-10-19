@@ -15,6 +15,7 @@ class SteamGameItem {
   String? lowestPriceFormatted;
   int discountPercent;
   bool isFree;
+  String status;
 
   SteamGameItem({
     required this.appId,
@@ -32,6 +33,7 @@ class SteamGameItem {
     this.lowestPriceFormatted,
     this.discountPercent = 0,
     this.isFree = false,
+    this.status = 'Affectionless',
   });
 
   Map<String, dynamic> toMap() {
@@ -51,6 +53,7 @@ class SteamGameItem {
       'lowestPriceFormatted': lowestPriceFormatted,
       'discountPercent': discountPercent,
       'isFree': isFree,
+      'status': status,
     };
   }
 }

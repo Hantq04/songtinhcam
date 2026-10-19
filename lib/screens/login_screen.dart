@@ -1,5 +1,11 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
+import '../services/steam_service.dart';
+import 'steam_result_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,63 +17,237 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
-  Future<void> _handleEmailLogin() async {
-    setState(() {
-      _isLoading = true;
-    });
+  /// Hộp thoại đăng nhập nhanh cho Windows Desktop (do plugin google_sign_in không hỗ trợ Windows)
+  Future<String?> _showWindowsLoginDialog() async {
+    final emailController = TextEditingController(text: 'admin@songtinhcam.com');
+    final formKey = GlobalKey<FormState>();
 
-    try {
-      final email = await AuthService.instance.signInWithGoogle();
-
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (email == null) {
-        // Người dùng đã hủy hoặc đóng giao diện đăng nhập Google
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF15803D),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          content: Row(
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF141C28),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFF223044), width: 1.2),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E2838),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.desktop_windows, color: Color(0xFF38BDF8), size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Windows Desktop Login',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Login successfully with $email',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+              Text(
+                'Google Sign-In plugin does not support Windows platform. Please enter your email to continue:',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF38BDF8), size: 20),
+                  filled: true,
+                  fillColor: const Color(0xFF0F141D),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF223044)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
                   ),
                 ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!val.contains('@') || !val.contains('.')) {
+                    return 'Invalid email address';
+                  }
+                  return null;
+                },
               ),
             ],
           ),
         ),
-      );
-
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            'Error Google Login: ${e.toString().replaceAll("Exception: ", "")}',
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
           ),
-        ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx, emailController.text.trim());
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleEmailLogin() async {
+    String? email;
+    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+    if (isDesktopPlatform) {
+      email = await _showWindowsLoginDialog();
+      if (email == null) return;
+
+      AuthService.instance.setLoggedInUser(
+        email: email,
+        displayName: email.split('@').first,
       );
+    } else {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        email = await AuthService.instance.signInWithGoogle();
+      } on MissingPluginException {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+        email = await _showWindowsLoginDialog();
+        if (email == null) return;
+        AuthService.instance.setLoggedInUser(
+          email: email,
+          displayName: email.split('@').first,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              'Error Google Login: ${e.toString().replaceAll("Exception: ", "")}',
+            ),
+          ),
+        );
+        return;
+      }
     }
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (email == null) {
+      return;
+    }
+
+    // Check if there is a saved Steam ID in local SQLite for this email
+    final savedSteamId = await DatabaseService.instance.getSavedSteamId(email);
+
+    if (savedSteamId != null && savedSteamId.trim().isNotEmpty) {
+      try {
+        final result = await SteamService.calculateAccount(
+          input: savedSteamId.trim(),
+          currencyName: 'Vietnamese Dong',
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF15803D),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Welcome $email! Auto-loaded calculation for $savedSteamId',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SteamResultScreen(
+              result: result,
+              currencyName: 'Vietnamese Dong',
+            ),
+          ),
+        );
+        return;
+      } catch (calcError) {
+        debugPrint('Auto calculation failed: $calcError');
+      }
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF15803D),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Login successfully with $email',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Navigator.pop(context);
   }
 
   @override

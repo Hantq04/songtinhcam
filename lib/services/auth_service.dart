@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -23,6 +24,10 @@ class AuthService extends ChangeNotifier {
 
   /// Đăng nhập trực tiếp bằng tài khoản Google thật của người dùng trên thiết bị
   Future<String?> signInWithGoogle() async {
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+      debugPrint('Google Sign-In is not supported on Windows/Linux desktop.');
+      return null;
+    }
     try {
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) {
@@ -37,7 +42,7 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
       return _userEmail;
     } catch (e) {
-      debugPrint('Lỗi đăng nhập Google: $e');
+      debugPrint('Error Login Google: $e');
       rethrow;
     }
   }

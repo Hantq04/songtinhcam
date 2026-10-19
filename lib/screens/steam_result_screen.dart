@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/steam_service.dart';
 import '../utils/steam_formatters.dart';
 import '../widgets/steam_top_nav_bar.dart';
+import 'steam_game_detail_screen.dart';
 
 class SteamResultScreen extends StatefulWidget {
   final SteamCalculationResult result;
@@ -22,7 +23,6 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
   late SteamCalculationResult _result;
   late String _currencyName;
   final TextEditingController _bottomInputController = TextEditingController();
-  bool _isRecalculating = false;
 
   @override
   void initState() {
@@ -37,46 +37,20 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     super.dispose();
   }
 
-  void _recalculateAccount(String input) async {
-    final trimmed = input.trim();
-    if (trimmed.isEmpty) return;
-
-    setState(() {
-      _isRecalculating = true;
-    });
-
-    try {
-      final newResult = await SteamService.calculateAccount(
-        input: trimmed,
-        currencyName: _currencyName,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _result = newResult;
-        _isRecalculating = false;
-        _bottomInputController.clear();
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF1E2838),
-          content: Text('Updated data for: ${_result.profileName}'),
-          behavior: SnackBarBehavior.floating,
+  void _openGameDetail(SteamGameItem game) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SteamGameDetailScreen(
+          game: game,
+          currencyName: _currencyName,
+          profileName: _result.profileName,
+          avatarUrl: _result.avatarUrl,
         ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isRecalculating = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFE53935),
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ),
+    );
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -147,10 +121,6 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                           _buildGamesLibraryTable(),
                           const SizedBox(height: 36),
                         ],
-
-                        // 6. Bottom Search Bar ("Want to calculate value of your own Steam account?")
-                        _buildBottomSearchBox(),
-                        const SizedBox(height: 48),
                       ],
                     ),
                   ),
@@ -829,182 +799,114 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
               final isFree = game.isFree;
               final isDiscounted = game.discountPercent > 0;
 
-              return Container(
-                color: index.isEven ? const Color(0xFF121926) : const Color(0xFF0F1520),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 28,
-                      child: Text(
-                        '#${index + 1}',
-                        style: const TextStyle(
-                          color: Color(0xFF6B7E96),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Game capsule banner
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: SteamImage(
-                        url: game.logoUrl,
-                        width: 64,
-                        height: 28,
-                        fit: BoxFit.cover,
-                        errorWidget: Container(
-                          width: 64,
-                          height: 28,
-                          color: const Color(0xFF1F2937),
-                          child: const Icon(Icons.sports_esports, size: 14, color: Colors.white54),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-
-                    // Game name
-                    Expanded(
-                      child: Text(
-                        game.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Playtime
-                    SizedBox(
-                      width: 90,
-                      child: Text(
-                        '${game.playtimeHours.toStringAsFixed(1)}h',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Discount pill
-                    if (isDiscounted) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4C6B22),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
+              return InkWell(
+                onTap: () => _openGameDetail(game),
+                child: Container(
+                  color: index.isEven ? const Color(0xFF121926) : const Color(0xFF0F1520),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 28,
                         child: Text(
-                          '-${game.discountPercent}%',
+                          '#${index + 1}',
                           style: const TextStyle(
-                            color: Color(0xFFBEEE11),
-                            fontSize: 11,
+                            color: Color(0xFF6B7E96),
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                    ],
 
-                    // Price
-                    SizedBox(
-                      width: 100,
-                      child: Text(
-                        game.finalPriceFormatted ?? (isFree ? 'Free' : '—'),
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: isFree
-                              ? const Color(0xFF9CA3AF)
-                              : const Color(0xFF60A5FA),
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                      // Game capsule banner
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: SteamImage(
+                          url: game.logoUrl,
+                          width: 64,
+                          height: 28,
+                          fit: BoxFit.cover,
+                          errorWidget: Container(
+                            width: 64,
+                            height: 28,
+                            color: const Color(0xFF1F2937),
+                            child: const Icon(Icons.sports_esports, size: 14, color: Colors.white54),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 14),
+
+                      // Game name
+                      Expanded(
+                        child: Text(
+                          game.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Playtime
+                      SizedBox(
+                        width: 75,
+                        child: Text(
+                          '${game.playtimeHours.toStringAsFixed(1)}h',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Discount pill
+                      if (isDiscounted) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4C6B22),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            '-${game.discountPercent}%',
+                            style: const TextStyle(
+                              color: Color(0xFFBEEE11),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+
+                      // Price
+                      SizedBox(
+                        width: 95,
+                        child: Text(
+                          game.finalPriceFormatted ?? (isFree ? 'Free' : '—'),
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: isFree
+                                ? const Color(0xFF9CA3AF)
+                                : const Color(0xFF60A5FA),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 6. Bottom Search Bar ("Want to calculate value of your own Steam account?")
-  Widget _buildBottomSearchBox() {
-    return Column(
-      children: [
-        const Text(
-          'Want to calculate value of your own Steam account?',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFFCBD5E1),
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          constraints: const BoxConstraints(maxWidth: 620),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141C28),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFF26374D), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: Color(0xFF6B7E96), size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _bottomInputController,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Your profile url or steamid',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35),
-                      fontSize: 14,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onSubmitted: _recalculateAccount,
-                ),
-              ),
-              if (_isRecalculating)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF3880FF)),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward, color: Color(0xFF3880FF), size: 20),
-                  onPressed: () => _recalculateAccount(_bottomInputController.text),
-                ),
-            ],
           ),
         ),
       ],
