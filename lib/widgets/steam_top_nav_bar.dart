@@ -181,7 +181,7 @@ class SteamTopNavBar extends StatelessWidget {
           ),
           child: PopupMenuButton<String>(
             offset: const Offset(0, 36),
-            tooltip: 'Tài khoản & Sao lưu',
+            tooltip: 'Account & Backup',
             onSelected: (value) => _handleUserAction(context, value),
             itemBuilder: (BuildContext ctx) {
               return [
@@ -345,7 +345,7 @@ class SteamTopNavBar extends StatelessWidget {
           backgroundColor: Color(0xFF1B2838),
           behavior: SnackBarBehavior.floating,
           content: Text(
-            'Đã đăng xuất tài khoản',
+            'Logged out successfully',
             style: TextStyle(color: Colors.white),
           ),
           duration: Duration(seconds: 2),
@@ -395,7 +395,7 @@ class SteamTopNavBar extends StatelessWidget {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Text(
-                              'Sao lưu dữ liệu (Backup)',
+                              'Data Backup',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 17,
@@ -408,8 +408,8 @@ class SteamTopNavBar extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         isLoggedIn
-                            ? 'Tài khoản liên kết: ${auth.userEmail}\nLần sao lưu gần nhất: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} ngày ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "Chưa có bản sao lưu nào"}'
-                            : 'Đăng nhập tài khoản để đồng bộ và sao lưu lịch sử tra cứu Steam Calculator lên đám mây.',
+                            ? 'Linked account: ${auth.userEmail}\nLast backup: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} - ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "No backup yet"}'
+                            : 'Sign in to sync and backup your Steam Calculator search history to the cloud.',
                         style: const TextStyle(
                           color: Color(0xFF94A3B8),
                           fontSize: 13,
@@ -423,7 +423,7 @@ class SteamTopNavBar extends StatelessWidget {
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
                             child: const Text(
-                              'Đóng',
+                              'Close',
                               style: TextStyle(color: Color(0xFF94A3B8)),
                             ),
                           ),
@@ -443,7 +443,7 @@ class SteamTopNavBar extends StatelessWidget {
                                   ),
                                 );
                               },
-                              child: const Text('Đăng nhập'),
+                              child: const Text('Login'),
                             )
                           else
                             ElevatedButton(
@@ -468,7 +468,7 @@ class SteamTopNavBar extends StatelessWidget {
                                           ),
                                           SizedBox(width: 10),
                                           Text(
-                                            'Sao lưu dữ liệu thành công!',
+                                            'Data backup successful!',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.w500,
@@ -480,7 +480,7 @@ class SteamTopNavBar extends StatelessWidget {
                                   );
                                 }
                               },
-                              child: const Text('Sao lưu ngay'),
+                              child: const Text('Backup Now'),
                             ),
                         ],
                       ),

@@ -193,7 +193,7 @@ class SteamService {
     // 2. Fallback sử dụng IP phân giải qua DoH kết nối Socket bảo lưu SNI
     final ips = await _resolveHostAllIps(uri.host);
     if (ips.isEmpty) {
-      throw Exception('Không thể phân giải tên miền: ${uri.host}');
+      throw Exception('Could not resolve hostname: ${uri.host}');
     }
 
     for (final ip in ips) {
@@ -250,7 +250,7 @@ class SteamService {
       } catch (_) {}
     }
 
-    throw Exception('Không thể kết nối đến Steam (${uri.host}).');
+    throw Exception('Could not connect to Steam (${uri.host}).');
   }
 
   /// Xây dựng URL XML tương tự buildSteamXmlUrl trong steam-api-test
@@ -316,7 +316,7 @@ class SteamService {
     required String currencyName,
   }) async {
     if (input.trim().isEmpty) {
-      throw Exception('Vui lòng cung cấp Steam URL hoặc SteamID');
+      throw Exception('Please provide a Steam URL or SteamID');
     }
 
     final targetXmlUrl = buildSteamXmlUrl(input);
@@ -325,7 +325,7 @@ class SteamService {
     // Kiểm tra lỗi từ XML
     if (xmlBody.contains('<error>') || xmlBody.startsWith('<response>')) {
       final errorMsg = _extractTagValue(xmlBody, 'error');
-      throw Exception(errorMsg ?? 'Không tìm thấy hồ sơ Steam hợp lệ');
+      throw Exception(errorMsg ?? 'Could not find a valid Steam profile');
     }
 
     // 1. Phân tích XML Profile
@@ -499,7 +499,7 @@ class SteamService {
     String? statusNote;
     if (visibilityState != null && visibilityState != 3) {
       statusNote =
-          'Hồ sơ Steam đang ở chế độ Riêng tư (Private). Một số thông tin có thể không hiển thị đầy đủ.';
+          'Steam profile is set to Private. Some information may not be fully displayed.';
     } else if (!fetchedFromWebApi) {
       statusNote = stats.note;
     }
@@ -803,8 +803,8 @@ class SteamService {
     }
 
     final note = hasApiKey
-        ? 'Dữ liệu đầy đủ từ Steam Web API (bao gồm toàn bộ game và giá Steam Store)'
-        : 'Dữ liệu thống kê dựa trên các game công khai từ hồ sơ Steam. Cấu hình Steam API Key để quét toàn bộ 100% thư viện.';
+        ? 'Full data from Steam Web API (including entire game library and Steam Store prices).'
+        : 'Statistical data based on publicly available games from the Steam profile. Configure a Steam API Key to scan 100% of your library.';
 
     return SteamLibraryStats(
       totalGamesCount: resolvedTotalGames,

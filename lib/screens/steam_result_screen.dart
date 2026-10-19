@@ -919,7 +919,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                     SizedBox(
                       width: 100,
                       child: Text(
-                        game.finalPriceFormatted ?? (isFree ? 'Miễn phí' : '—'),
+                        game.finalPriceFormatted ?? (isFree ? 'Free' : '—'),
                         textAlign: TextAlign.right,
                         style: TextStyle(
                           color: isFree
