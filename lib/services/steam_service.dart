@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
+
 import '../models/steam_models.dart';
 import '../utils/steam_formatters.dart';
 
@@ -11,9 +13,70 @@ export '../widgets/steam_image.dart';
 class SteamService {
   static String? _cachedEnvApiKey;
 
-  /// Steam Web API Key: Đọc từ biến môi trường STEAM_API_KEY hoặc tự động từ file .env
+  /// Steam Web API Key: Đọc từ biến môi trường STEAM_API_KEY (--dart-define),
+  /// từ file .env trên máy host, hoặc từ asset .env của Flutter app.
+  static Future<String> getApiKey() async {
+    if (_cachedEnvApiKey != null && _cachedEnvApiKey!.isNotEmpty) {
+      return _cachedEnvApiKey!;
+    }
+
+    const envVal = String.fromEnvironment('STEAM_API_KEY');
+    if (envVal.isNotEmpty) {
+      _cachedEnvApiKey = envVal;
+      return envVal;
+    }
+
+    // 1. Đọc từ file hệ thống (khi chạy Desktop, CLI, unit test)
+    try {
+      final candidatePaths = [
+        '.env',
+        '../.env',
+        '../../.env',
+        '../../../.env',
+        '../../../../.env',
+      ];
+      for (final path in candidatePaths) {
+        final envFile = File(path);
+        if (envFile.existsSync()) {
+          for (final line in envFile.readAsLinesSync()) {
+            final trimmed = line.trim();
+            if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
+            if (trimmed.startsWith('STEAM_API_KEY=')) {
+              final key = trimmed.substring('STEAM_API_KEY='.length).trim();
+              if (key.isNotEmpty) {
+                _cachedEnvApiKey = key;
+                return key;
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Đọc từ asset bundle của Flutter (khi chạy trên Android/iOS thiết bị thật hoặc máy ảo)
+    try {
+      final content = await rootBundle.loadString('.env');
+      for (final line in content.split('\n')) {
+        final trimmed = line.trim();
+        if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
+        if (trimmed.startsWith('STEAM_API_KEY=')) {
+          final key = trimmed.substring('STEAM_API_KEY='.length).trim();
+          if (key.isNotEmpty) {
+            _cachedEnvApiKey = key;
+            return key;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return '';
+  }
+
+  /// Getter đồng bộ kiểm tra cache hoặc biến môi trường/file .env
   static String get defaultApiKey {
-    if (_cachedEnvApiKey != null) return _cachedEnvApiKey!;
+    if (_cachedEnvApiKey != null && _cachedEnvApiKey!.isNotEmpty) {
+      return _cachedEnvApiKey!;
+    }
 
     const envVal = String.fromEnvironment('STEAM_API_KEY');
     if (envVal.isNotEmpty) {
@@ -22,25 +85,37 @@ class SteamService {
     }
 
     try {
-      final envFile = File('.env');
-      if (envFile.existsSync()) {
-        for (final line in envFile.readAsLinesSync()) {
-          final trimmed = line.trim();
-          if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
-          if (trimmed.startsWith('STEAM_API_KEY=')) {
-            _cachedEnvApiKey = trimmed.substring('STEAM_API_KEY='.length).trim();
-            return _cachedEnvApiKey!;
+      final candidatePaths = [
+        '.env',
+        '../.env',
+        '../../.env',
+        '../../../.env',
+        '../../../../.env',
+      ];
+      for (final path in candidatePaths) {
+        final envFile = File(path);
+        if (envFile.existsSync()) {
+          for (final line in envFile.readAsLinesSync()) {
+            final trimmed = line.trim();
+            if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
+            if (trimmed.startsWith('STEAM_API_KEY=')) {
+              final key = trimmed.substring('STEAM_API_KEY='.length).trim();
+              if (key.isNotEmpty) {
+                _cachedEnvApiKey = key;
+                return key;
+              }
+            }
           }
         }
       }
     } catch (_) {}
 
-    _cachedEnvApiKey = '';
-    return '';
+    return _cachedEnvApiKey ?? '';
   }
 
   static final Map<String, List<String>> _dnsCache = {};
   static final Map<String, num> _appPriceCache = {};
+  static final Map<int, double> _lowestDiscountRatioCache = {};
 
   /// Phân giải IP bằng Google DoH & Cloudflare DoH (hỗ trợ vượt chặn DNS tại VN)
   static Future<List<String>> _resolveHostAllIps(String host) async {
@@ -238,7 +313,6 @@ class SteamService {
   /// Lấy dữ liệu hồ sơ và tính toán giá trị tài khoản (Port toàn bộ từ SteamApiService.java)
   static Future<SteamCalculationResult> calculateAccount({
     required String input,
-    String? apiKey,
     required String currencyName,
   }) async {
     if (input.trim().isEmpty) {
@@ -356,10 +430,8 @@ class SteamService {
       } catch (_) {}
     }
 
-    // 3. Lấy toàn bộ game qua Steam Web API GetOwnedGames (sử dụng API key người dùng hoặc API key mặc định như SteamDB)
-    final cleanApiKey = (apiKey != null && apiKey.trim().isNotEmpty)
-        ? apiKey.trim()
-        : defaultApiKey;
+    // 3. Lấy toàn bộ game qua Steam Web API GetOwnedGames (sử dụng API key từ biến môi trường hoặc .env)
+    final cleanApiKey = await getApiKey();
 
     List<SteamGameItem> games = [];
     bool fetchedFromWebApi = false;
@@ -414,6 +486,7 @@ class SteamService {
     final storeCountryCode = currencyCode == 'VND' ? 'vn' : 'us';
 
     await _fetchStorePrices(games, storeCountryCode, currencyCode);
+    await _fetchHistoricalLows(games, currencyCode);
 
     // 5. Tính toán thống kê thư viện
     final stats = _calculateLibraryStats(
@@ -448,7 +521,8 @@ class SteamService {
       privacyState: privacyState,
       visibilityState: visibilityState,
       summary: summary,
-      totalValue: stats.totalInitialPriceFormatted,
+      totalValue: stats.totalLowestPriceFormatted,
+      todayPrice: stats.totalCurrentPriceFormatted,
       lowestPrice: stats.totalCurrentPriceFormatted,
       gamesOwned: stats.totalGamesCount,
       hoursPlayed: '${stats.totalPlaytimeHours.toStringAsFixed(1)}h',
@@ -553,6 +627,127 @@ class SteamService {
     }
   }
 
+  /// Lấy mức giá thấp nhất lịch sử (All-Time Low) từ CheapShark API
+  static Future<void> _fetchHistoricalLows(
+    List<SteamGameItem> games,
+    String currencyCode,
+  ) async {
+    final paidGames =
+        games.where((g) => !g.isFree && (g.initialPrice ?? 0) > 0).toList();
+    if (paidGames.isEmpty) {
+      for (final g in games) {
+        g.lowestPrice = g.finalPrice ?? g.initialPrice ?? 0;
+        g.lowestPriceFormatted = _formatAmount(g.lowestPrice!, currencyCode);
+      }
+      return;
+    }
+
+    final gamesToQuery = paidGames.take(60).toList();
+    final List<int> uncachedAppIds = [];
+    for (final g in gamesToQuery) {
+      if (!_lowestDiscountRatioCache.containsKey(g.appId)) {
+        uncachedAppIds.add(g.appId);
+      }
+    }
+
+    if (uncachedAppIds.isNotEmpty) {
+      const batchSize = 30;
+      for (int i = 0; i < uncachedAppIds.length; i += batchSize) {
+        final end = (i + batchSize < uncachedAppIds.length)
+            ? i + batchSize
+            : uncachedAppIds.length;
+        final batch = uncachedAppIds.sublist(i, end);
+        final appIdsStr = batch.join(',');
+
+        try {
+          final client = HttpClient();
+          client.connectionTimeout = const Duration(seconds: 4);
+          final uri = Uri.parse(
+              'https://www.cheapshark.com/api/1.0/deals?steamAppID=$appIdsStr&sortBy=Price');
+          final req = await client.getUrl(uri);
+          req.headers
+              .set('User-Agent', 'SongTinhCam/1.0 (admin@songtinhcam.vn)');
+          final res = await req.close();
+          final body = await res.transform(utf8.decoder).join();
+          client.close();
+
+          if (res.statusCode == 200) {
+            final deals = jsonDecode(body);
+            if (deals is List) {
+              final Map<int, String> appToGameId = {};
+              for (final d in deals) {
+                if (d is Map) {
+                  final sAppId =
+                      int.tryParse(d['steamAppID']?.toString() ?? '');
+                  final gId = d['gameID']?.toString();
+                  if (sAppId != null &&
+                      gId != null &&
+                      !appToGameId.containsKey(sAppId)) {
+                    appToGameId[sAppId] = gId;
+                  }
+                }
+              }
+
+              final detailFutures = appToGameId.entries.map((entry) async {
+                final aId = entry.key;
+                final gId = entry.value;
+                try {
+                  final gClient = HttpClient();
+                  gClient.connectionTimeout = const Duration(seconds: 3);
+                  final gUri = Uri.parse(
+                      'https://www.cheapshark.com/api/1.0/games?id=$gId');
+                  final gReq = await gClient.getUrl(gUri);
+                  gReq.headers.set(
+                      'User-Agent', 'SongTinhCam/1.0 (admin@songtinhcam.vn)');
+                  final gRes = await gReq.close();
+                  final gBody = await gRes.transform(utf8.decoder).join();
+                  gClient.close();
+
+                  if (gRes.statusCode == 200) {
+                    final gData = jsonDecode(gBody);
+                    final lowestStr = gData['cheapestPriceEver']?['price'];
+                    final retailStr =
+                        (gData['deals'] as List?)?.firstOrNull?['retailPrice'];
+                    final lowest = double.tryParse(lowestStr?.toString() ?? '');
+                    final retail = double.tryParse(retailStr?.toString() ?? '');
+                    if (lowest != null && retail != null && retail > 0) {
+                      final ratio = (lowest / retail).clamp(0.0, 1.0);
+                      _lowestDiscountRatioCache[aId] = ratio;
+                    }
+                  }
+                } catch (_) {}
+              });
+
+              await Future.wait(detailFutures);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Áp dụng lowestPrice cho từng game
+    for (final game in games) {
+      if (game.isFree) {
+        game.lowestPrice = 0;
+        game.lowestPriceFormatted = currencyCode == 'VND' ? 'Miễn phí' : 'Free';
+        continue;
+      }
+
+      final ratio = _lowestDiscountRatioCache[game.appId];
+      if (ratio != null && game.initialPrice != null && game.initialPrice! > 0) {
+        final calcLow = currencyCode == 'USD'
+            ? (game.initialPrice! * ratio)
+            : (game.initialPrice! * ratio).round();
+        game.lowestPrice = calcLow;
+      } else {
+        // Fallback an toàn: giá sale hiện tại hoặc giá gốc
+        game.lowestPrice = game.finalPrice ?? game.initialPrice ?? 0;
+      }
+      game.lowestPriceFormatted =
+          _formatAmount(game.lowestPrice!, currencyCode);
+    }
+  }
+
   /// Tính toán số liệu thống kê thư viện giống hệt calculateLibraryStats trong steam-api-test
   static SteamLibraryStats _calculateLibraryStats({
     required List<SteamGameItem> games,
@@ -563,6 +758,7 @@ class SteamService {
     double totalPlaytimeHours = 0.0;
     num totalInitialPrice = 0;
     num totalCurrentPrice = 0;
+    num totalLowestPrice = 0;
     int calculatedCount = 0;
 
     for (final game in games) {
@@ -573,6 +769,11 @@ class SteamService {
       if (game.finalPrice != null) {
         totalCurrentPrice += game.finalPrice!;
       }
+      if (game.lowestPrice != null) {
+        totalLowestPrice += game.lowestPrice!;
+      } else {
+        totalLowestPrice += (game.finalPrice ?? game.initialPrice ?? 0);
+      }
       calculatedCount++;
     }
 
@@ -581,6 +782,7 @@ class SteamService {
 
     final initialFormatted = _formatAmount(totalInitialPrice, currencyCode);
     final currentFormatted = _formatAmount(totalCurrentPrice, currencyCode);
+    final lowestFormatted = _formatAmount(totalLowestPrice, currencyCode);
 
     final resolvedTotalGames = (totalGamesCount != null && totalGamesCount > 0)
         ? totalGamesCount
@@ -610,8 +812,10 @@ class SteamService {
       totalPlaytimeDays: totalPlaytimeDays,
       totalInitialPrice: totalInitialPrice,
       totalCurrentPrice: totalCurrentPrice,
+      totalLowestPrice: totalLowestPrice,
       totalInitialPriceFormatted: initialFormatted,
       totalCurrentPriceFormatted: currentFormatted,
+      totalLowestPriceFormatted: lowestFormatted,
       currency: currencyCode,
       costPerHour: costPerHour,
       gamesCountCalculated: calculatedCount,

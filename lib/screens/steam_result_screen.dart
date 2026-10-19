@@ -133,7 +133,6 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
 
                         // 2. Notice banner (Red warning if private, or blue info)
                         _buildNoticeBanner(),
-                        const SizedBox(height: 20),
 
                         // 3. Dual Progress / Status Bars
                         _buildDualProgressBars(isMobile),
@@ -456,8 +455,11 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
   }
 
   Widget _buildProfileRight() {
-    final hasValue = (_result.stats?.totalInitialPrice ?? 0) > 0 ||
-        (_result.totalValue.isNotEmpty && _result.totalValue != '0 ₫' && _result.totalValue != '\$0.00' && _result.totalValue != 'Cần API Key');
+    final hasValue = _result.games.isNotEmpty &&
+        _result.totalValue != 'N/A' &&
+        _result.totalValue.isNotEmpty &&
+        _result.totalValue != '0 ₫' &&
+        _result.totalValue != '\$0.00';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -482,7 +484,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          hasValue ? "Today's prices: ${_result.lowestPrice}" : 'games are hidden',
+          hasValue ? "Today's prices: ${_result.todayPrice}" : 'games are hidden',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.5),
             fontSize: 13,
@@ -497,73 +499,84 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     final isHidden = _result.visibilityState != 3 && _result.games.isEmpty;
 
     if (isHidden) {
-      return Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF8B1D1D),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFDC2626)),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Games are hidden by default on Steam, you can change your Steam profile privacy settings:',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF8B1D1D),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFDC2626)),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Games are hidden by default on Steam, you can change your Steam profile privacy settings:',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              '1. From your Steam Profile, click the Edit Profile link under your displayed badge\n'
-              '2. Click the My Privacy Settings tab\n'
-              '3. Set Game details to Public\n'
-              '4. Uncheck Always keep my total playtime private option',
-              style: TextStyle(
-                color: Color(0xFFFEE2E2),
-                fontSize: 13,
-                height: 1.5,
+              const SizedBox(height: 10),
+              const Text(
+                '1. From your Steam Profile, click the Edit Profile link under your displayed badge\n'
+                '2. Click the My Privacy Settings tab\n'
+                '3. Set Game details to Public\n'
+                '4. Uncheck Always keep my total playtime private option',
+                style: TextStyle(
+                  color: Color(0xFFFEE2E2),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'After changing your privacy settings, it may take some time for SteamDB to clear the cache and see new data.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
+              const SizedBox(height: 10),
+              Text(
+                'After changing your privacy settings, it may take some time for SteamDB to clear the cache and see new data.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF132032),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFF1E3A5F)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline, color: Color(0xFF38BDF8), size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _result.statusNote ??
-                  'Full data from Steam Web API & Steam Store API (scanned entire game library and current prices).',
-              style: const TextStyle(
-                color: Color(0xFF93C5FD),
-                fontSize: 13,
-                height: 1.4,
+    // Nếu 0 game thì không hiện ô thông báo
+    if (_result.games.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF132032),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFF1E3A5F)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Color(0xFF38BDF8), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _result.statusNote ??
+                    'Full data from Steam Web API & Steam Store API (scanned entire game library and current prices).',
+                style: const TextStyle(
+                  color: Color(0xFF93C5FD),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -720,7 +733,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
               _buildStatColumn('Average price per hour ⓘ', _result.pricePerHour, const Color(0xFFFBBF24), width: colWidth),
               _buildStatColumn('Hours on record', _result.hoursPlayed, Colors.white, width: colWidth),
               _buildStatColumn('Average playtime', avgPlaytimeStr, Colors.white, width: colWidth),
-              _buildStatColumn("⭐ Today's prices ⓘ", _result.lowestPrice, const Color(0xFF60A5FA), width: colWidth),
+              _buildStatColumn("⭐ Today's prices ⓘ", _result.todayPrice, const Color(0xFF60A5FA), width: colWidth),
             ],
           );
         },
