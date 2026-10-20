@@ -2,21 +2,23 @@
 
 ![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-%230175C2.svg?style=for-the-badge&logo=Dart&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.0.1-brightgreen?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.2.1-brightgreen?style=for-the-badge)
 [![Download APK](https://img.shields.io/badge/Download-Android%20APK-00C853?style=for-the-badge&logo=android&logoColor=white)](apk/songtinhcam-release.apk)
+
+Ứng dụng di động và đa nền tảng giúp tra cứu, định giá tài khoản Steam, quản lý danh mục trò chơi, bảo lưu lịch sử giá đáy, đồng bộ tài khoản Google và sao lưu dữ liệu an toàn.
 
 ---
 
 ## 📱 Cài đặt nhanh ứng dụng Android (APK)
 
-Bạn có thể tải trực tiếp file cài đặt APK đã được build sẵn để cài đặt lên thiết bị Android hoặc máy ảo:
+Bạn có thể tải trực tiếp file cài đặt APK phiên bản mới nhất đã được build sẵn để cài đặt lên thiết bị Android:
 
 * 📦 **Link tải APK trực tiếp**: [**songtinhcam-release.apk**](apk/songtinhcam-release.apk)
 * **Cách cài đặt**:
-  - Tải file `songtinhcam-release.apk` về điện thoại.
+  - Tải file `songtinhcam-release.apk` về điện thoại Android.
   - Mở file APK vừa tải về trên thiết bị.
   - Nếu xuất hiện cảnh báo bảo mật, chọn **Cài đặt từ nguồn này** (Allow from this source).
-  - Nhấn **Cài đặt (Install)** và mở ứng dụng.
+  - Nhấn **Cài đặt (Install)** và trải nghiệm ứng dụng.
 
 ---
 
@@ -66,7 +68,7 @@ Khi muốn đóng gói bản release APK mới:
 ```bash
 flutter build apk --release
 ```
-File APK đầu ra sẽ nằm tại: `build/app/outputs/flutter-apk/app-release.apk`
+File APK đầu ra sẽ nằm tại: `build/app/outputs/flutter-apk/app-release.apk` (đồng thời được copy vào thư mục `apk/songtinhcam-release.apk`).
 
 ---
 
@@ -78,7 +80,7 @@ Dự án tích hợp đầy đủ Unit Tests và Widget Tests để đảm bảo
   ```bash
   flutter test
   ```
-  *(12/12 bài test tự động: phân giải URL/SteamID, định dạng tiền tệ VND/USD, kiểm tra smoke test và giao diện responsive trên mobile).*
+  *(21/21 bài test tự động: bảo vệ giá đáy SQLite không tăng, phân giải URL/SteamID, định dạng tiền tệ VND/USD, kiểm tra luồng Auth & Login, phân trang game, sao lưu dữ liệu và giao diện responsive).*
 
 * **Kiểm tra linter và chuẩn mã nguồn**:
   ```bash

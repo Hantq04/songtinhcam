@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/steam_models.dart';
 import '../utils/steam_formatters.dart';
+import 'database_service.dart';
 
 export '../models/steam_models.dart';
 export '../widgets/steam_image.dart';
@@ -481,12 +483,77 @@ class SteamService {
     // Sắp xếp game theo số giờ chơi giảm dần
     games.sort((a, b) => b.playtimeHours.compareTo(a.playtimeHours));
 
-    // 4. Lấy giá từ Steam Store API theo batch 30 appid (như steam-api-test)
+    // 4. Lấy giá từ SQLite cache và Steam Store API
     final currencyCode = currencyName == 'Vietnamese Dong' ? 'VND' : 'USD';
     final storeCountryCode = currencyCode == 'VND' ? 'vn' : 'us';
 
+    // 4a. Đọc trước toàn bộ cache SQLite cho tất cả các game của tài khoản
+    Map<int, Map<String, dynamic>> cachedPrices = {};
+    try {
+      cachedPrices = await DatabaseService.instance.getCachedGamePrices(
+        appIds: games.map((g) => g.appId).toList(),
+        currencyCode: currencyCode,
+      );
+
+      for (final game in games) {
+        final cached = cachedPrices[game.appId];
+        if (cached != null) {
+          final initP = cached['initial_price'] as num?;
+          final finP = cached['final_price'] as num?;
+          final lowP = cached['lowest_price'] as num?;
+          final discP = cached['discount_percent'] as int?;
+          final isFreeCached = (cached['is_free'] == 1);
+
+          if (initP != null && initP > 0) game.initialPrice = initP;
+          if (finP != null) game.finalPrice = finP;
+          if (lowP != null) game.lowestPrice = lowP;
+          if (discP != null) game.discountPercent = discP;
+          game.isFree = isFreeCached;
+
+          if (game.isFree) {
+            game.initialPriceFormatted = 'Free';
+            game.finalPriceFormatted = 'Free';
+            game.lowestPriceFormatted = 'Free';
+          } else {
+            if (game.initialPrice != null) {
+              game.initialPriceFormatted =
+                  _formatAmount(game.initialPrice!, currencyCode);
+            }
+            if (game.finalPrice != null) {
+              game.finalPriceFormatted =
+                  _formatAmount(game.finalPrice!, currencyCode);
+            }
+            if (game.lowestPrice != null) {
+              game.lowestPriceFormatted =
+                  _formatAmount(game.lowestPrice!, currencyCode);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 4b. Cập nhật giá mới nhất từ Steam Store & CheapShark
     await _fetchStorePrices(games, storeCountryCode, currencyCode);
-    await _fetchHistoricalLows(games, currencyCode);
+    await _fetchHistoricalLows(games, currencyCode, cachedPrices);
+
+    // 4c. Lưu lại cache SQLite để khóa cứng giá đáy lịch sử (không bao giờ tăng)
+    try {
+      final recordsToSave = <Map<String, dynamic>>[];
+      for (final game in games) {
+        if (game.lowestPrice != null) {
+          recordsToSave.add({
+            'app_id': game.appId,
+            'currency_code': currencyCode,
+            'initial_price': game.initialPrice,
+            'final_price': game.finalPrice,
+            'lowest_price': game.lowestPrice,
+            'discount_percent': game.discountPercent,
+            'is_free': game.isFree ? 1 : 0,
+          });
+        }
+      }
+      await DatabaseService.instance.saveGamePrices(recordsToSave);
+    } catch (_) {}
 
     // 5. Tính toán thống kê thư viện
     final stats = _calculateLibraryStats(
@@ -613,13 +680,15 @@ class SteamService {
             }
           }
 
-          // Game is free or no longer available
-          game.initialPrice = 0;
-          game.finalPrice = 0;
-          game.discountPercent = 0;
-          game.initialPriceFormatted = 'Free';
-          game.finalPriceFormatted = 'Free';
-          game.isFree = true;
+          // Game is free or no longer available (chỉ set free nếu chưa có giá từ cache)
+          if (game.initialPrice == null || game.initialPrice == 0) {
+            game.initialPrice = 0;
+            game.finalPrice = 0;
+            game.discountPercent = 0;
+            game.initialPriceFormatted = 'Free';
+            game.finalPriceFormatted = 'Free';
+            game.isFree = true;
+          }
         }
       } catch (_) {
         // Tiếp tục xử lý batch tiếp theo nếu một batch gặp lỗi
@@ -627,16 +696,24 @@ class SteamService {
     }
   }
 
-  /// Lấy mức giá thấp nhất lịch sử (All-Time Low) từ CheapShark API
+  /// Lấy mức giá thấp nhất lịch sử (All-Time Low) từ CheapShark API kết hợp SQLite Cache
   static Future<void> _fetchHistoricalLows(
     List<SteamGameItem> games,
-    String currencyCode,
-  ) async {
+    String currencyCode, [
+    Map<int, Map<String, dynamic>> cachedPrices = const {},
+  ]) async {
     final paidGames =
         games.where((g) => !g.isFree && (g.initialPrice ?? 0) > 0).toList();
     if (paidGames.isEmpty) {
       for (final g in games) {
-        g.lowestPrice = g.finalPrice ?? g.initialPrice ?? 0;
+        final cached = cachedPrices[g.appId];
+        final previousLowest =
+            (cached?['lowest_price'] as num?) ?? g.lowestPrice;
+        if (previousLowest != null && previousLowest > 0) {
+          g.lowestPrice = previousLowest;
+        } else {
+          g.lowestPrice = g.finalPrice ?? g.initialPrice ?? 0;
+        }
         g.lowestPriceFormatted = _formatAmount(g.lowestPrice!, currencyCode);
       }
       return;
@@ -725,7 +802,7 @@ class SteamService {
       }
     }
 
-    // Áp dụng lowestPrice cho từng game
+    // Áp dụng lowestPrice cho từng game: KHÔNG BAO GIỜ TĂNG GIÁ ĐÁY
     for (final game in games) {
       if (game.isFree) {
         game.lowestPrice = 0;
@@ -733,16 +810,35 @@ class SteamService {
         continue;
       }
 
+      num candidateLow;
       final ratio = _lowestDiscountRatioCache[game.appId];
       if (ratio != null && game.initialPrice != null && game.initialPrice! > 0) {
         final calcLow = currencyCode == 'USD'
             ? (game.initialPrice! * ratio)
             : (game.initialPrice! * ratio).round();
-        game.lowestPrice = calcLow;
+        candidateLow = calcLow;
       } else {
-        // Fallback an toàn: giá sale hiện tại hoặc giá gốc
-        game.lowestPrice = game.finalPrice ?? game.initialPrice ?? 0;
+        // Fallback: giá sale hiện tại hoặc giá gốc
+        candidateLow = game.finalPrice ?? game.initialPrice ?? 0;
       }
+
+      // ĐẢM BẢO KHÔNG TĂNG GIÁ:
+      // So sánh với giá đáy lịch sử đã lưu trong SQLite cache
+      final cached = cachedPrices[game.appId];
+      final previousLowest =
+          (cached?['lowest_price'] as num?) ?? game.lowestPrice;
+
+      if (previousLowest != null && previousLowest > 0) {
+        if (candidateLow <= 0) {
+          game.lowestPrice = previousLowest;
+        } else {
+          // Chỉ lấy mức giá nhỏ hơn (giữ đáy cũ nếu đợt này giá cao hơn)
+          game.lowestPrice = math.min(previousLowest, candidateLow);
+        }
+      } else {
+        game.lowestPrice = candidateLow;
+      }
+
       game.lowestPriceFormatted =
           _formatAmount(game.lowestPrice!, currencyCode);
     }

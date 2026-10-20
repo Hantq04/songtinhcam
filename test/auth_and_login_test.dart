@@ -18,17 +18,9 @@ void main() {
     AuthService.instance.signOut();
     testDb = await openDatabase(
       inMemoryDatabasePath,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS user_profiles (
-            email TEXT PRIMARY KEY,
-            display_name TEXT,
-            steam_id TEXT,
-            avatar_url TEXT,
-            updated_at INTEGER
-          )
-        ''');
+        await DatabaseService.createTables(db);
       },
     );
     DatabaseService.instance.setDatabaseForTesting(testDb);
@@ -45,6 +37,70 @@ void main() {
     );
     final id = await DatabaseService.instance.getSavedSteamId('test@example.com');
     expect(id, '12345678');
+  });
+
+  test('DatabaseService caches game prices and guarantees lowest price never increases', () async {
+    // 1. Lưu giá lần đầu: Game Terraria giá gốc 400.000, đang sale còn 100.000
+    await DatabaseService.instance.saveGamePrices([
+      {
+        'app_id': 105600,
+        'currency_code': 'VND',
+        'initial_price': 400000,
+        'final_price': 100000,
+        'lowest_price': 100000,
+        'discount_percent': 75,
+        'is_free': 0,
+      }
+    ]);
+
+    // Kiểm tra đã lưu giá 100.000
+    var cached = await DatabaseService.instance.getCachedGamePrices(
+      appIds: [105600],
+      currencyCode: 'VND',
+    );
+    expect(cached[105600]!['lowest_price'], 100000);
+    expect(cached[105600]!['initial_price'], 400000);
+
+    // 2. Đợt sale kết thúc: Steam trả về giá 400.000, CheapShark ko có deal (candidate 400.000)
+    await DatabaseService.instance.saveGamePrices([
+      {
+        'app_id': 105600,
+        'currency_code': 'VND',
+        'initial_price': 400000,
+        'final_price': 400000,
+        'lowest_price': 400000, // Giá candidate cao hơn do hết sale
+        'discount_percent': 0,
+        'is_free': 0,
+      }
+    ]);
+
+    // Giá đáy trong SQLite VẪN PHẢI LÀ 100.000 (TUYỆT ĐỐI KHÔNG TĂNG LÊN 400.000)
+    cached = await DatabaseService.instance.getCachedGamePrices(
+      appIds: [105600],
+      currencyCode: 'VND',
+    );
+    expect(cached[105600]!['lowest_price'], 100000);
+    expect(cached[105600]!['final_price'], 400000);
+
+    // 3. Đợt sale mới sâu hơn: Giá giảm kỷ lục còn 75.000
+    await DatabaseService.instance.saveGamePrices([
+      {
+        'app_id': 105600,
+        'currency_code': 'VND',
+        'initial_price': 400000,
+        'final_price': 75000,
+        'lowest_price': 75000,
+        'discount_percent': 81,
+        'is_free': 0,
+      }
+    ]);
+
+    // Giá đáy trong SQLite ĐƯỢC CẬP NHẬT XUỐNG 75.000
+    cached = await DatabaseService.instance.getCachedGamePrices(
+      appIds: [105600],
+      currencyCode: 'VND',
+    );
+    expect(cached[105600]!['lowest_price'], 75000);
   });
 
   testWidgets(
