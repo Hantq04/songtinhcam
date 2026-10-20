@@ -3,117 +3,20 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart' show rootBundle;
-
 import '../models/steam_models.dart';
 import '../utils/steam_formatters.dart';
 import 'database_service.dart';
+import 'env_service.dart';
 
 export '../models/steam_models.dart';
 export '../widgets/steam_image.dart';
 
 class SteamService {
-  static String? _cachedEnvApiKey;
-
-  /// Steam Web API Key: Đọc từ biến môi trường STEAM_API_KEY (--dart-define),
-  /// từ file .env trên máy host, hoặc từ asset .env của Flutter app.
-  static Future<String> getApiKey() async {
-    if (_cachedEnvApiKey != null && _cachedEnvApiKey!.isNotEmpty) {
-      return _cachedEnvApiKey!;
-    }
-
-    const envVal = String.fromEnvironment('STEAM_API_KEY');
-    if (envVal.isNotEmpty) {
-      _cachedEnvApiKey = envVal;
-      return envVal;
-    }
-
-    // 1. Đọc từ file hệ thống (khi chạy Desktop, CLI, unit test)
-    try {
-      final candidatePaths = [
-        '.env',
-        '../.env',
-        '../../.env',
-        '../../../.env',
-        '../../../../.env',
-      ];
-      for (final path in candidatePaths) {
-        final envFile = File(path);
-        if (envFile.existsSync()) {
-          for (final line in envFile.readAsLinesSync()) {
-            final trimmed = line.trim();
-            if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
-            if (trimmed.startsWith('STEAM_API_KEY=')) {
-              final key = trimmed.substring('STEAM_API_KEY='.length).trim();
-              if (key.isNotEmpty) {
-                _cachedEnvApiKey = key;
-                return key;
-              }
-            }
-          }
-        }
-      }
-    } catch (_) {}
-
-    // 2. Đọc từ asset bundle của Flutter (khi chạy trên Android/iOS thiết bị thật hoặc máy ảo)
-    try {
-      final content = await rootBundle.loadString('.env');
-      for (final line in content.split('\n')) {
-        final trimmed = line.trim();
-        if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
-        if (trimmed.startsWith('STEAM_API_KEY=')) {
-          final key = trimmed.substring('STEAM_API_KEY='.length).trim();
-          if (key.isNotEmpty) {
-            _cachedEnvApiKey = key;
-            return key;
-          }
-        }
-      }
-    } catch (_) {}
-
-    return '';
-  }
+  /// Steam Web API Key: Đọc thông qua EnvService tập trung
+  static Future<String> getApiKey() => EnvService.getSteamApiKey();
 
   /// Getter đồng bộ kiểm tra cache hoặc biến môi trường/file .env
-  static String get defaultApiKey {
-    if (_cachedEnvApiKey != null && _cachedEnvApiKey!.isNotEmpty) {
-      return _cachedEnvApiKey!;
-    }
-
-    const envVal = String.fromEnvironment('STEAM_API_KEY');
-    if (envVal.isNotEmpty) {
-      _cachedEnvApiKey = envVal;
-      return envVal;
-    }
-
-    try {
-      final candidatePaths = [
-        '.env',
-        '../.env',
-        '../../.env',
-        '../../../.env',
-        '../../../../.env',
-      ];
-      for (final path in candidatePaths) {
-        final envFile = File(path);
-        if (envFile.existsSync()) {
-          for (final line in envFile.readAsLinesSync()) {
-            final trimmed = line.trim();
-            if (trimmed.startsWith('#') || trimmed.isEmpty) continue;
-            if (trimmed.startsWith('STEAM_API_KEY=')) {
-              final key = trimmed.substring('STEAM_API_KEY='.length).trim();
-              if (key.isNotEmpty) {
-                _cachedEnvApiKey = key;
-                return key;
-              }
-            }
-          }
-        }
-      }
-    } catch (_) {}
-
-    return _cachedEnvApiKey ?? '';
-  }
+  static String get defaultApiKey => EnvService.defaultSteamApiKey;
 
   static final Map<String, List<String>> _dnsCache = {};
   static final Map<String, num> _appPriceCache = {};
@@ -460,6 +363,10 @@ class SteamService {
                 : null;
             final logoUrl =
                 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/$appId/capsule_184x69.jpg';
+            final rtime = g['rtime_last_played'] as int? ?? 0;
+            final lastPlayed = rtime > 0
+                ? DateTime.fromMillisecondsSinceEpoch(rtime * 1000)
+                : null;
 
             games.add(SteamGameItem(
               appId: appId,
@@ -468,6 +375,7 @@ class SteamService {
               iconUrl: iconUrl,
               logoUrl: logoUrl,
               storeUrl: 'https://store.steampowered.com/app/$appId',
+              lastPlayed: lastPlayed,
             ));
           }
           fetchedFromWebApi = true;

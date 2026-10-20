@@ -16,6 +16,8 @@ class SteamGameItem {
   int discountPercent;
   bool isFree;
   String status;
+  DateTime? lastPlayed;
+  DateTime? addedDate;
 
   SteamGameItem({
     required this.appId,
@@ -34,6 +36,8 @@ class SteamGameItem {
     this.discountPercent = 0,
     this.isFree = false,
     this.status = 'Affectionless',
+    this.lastPlayed,
+    this.addedDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -54,6 +58,8 @@ class SteamGameItem {
       'discountPercent': discountPercent,
       'isFree': isFree,
       'status': status,
+      'lastPlayed': lastPlayed?.toIso8601String(),
+      'addedDate': addedDate?.toIso8601String(),
     };
   }
 }

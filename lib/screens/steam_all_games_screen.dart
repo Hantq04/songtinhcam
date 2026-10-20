@@ -27,6 +27,21 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Filter state
+  bool _showFilterPanel = false;
+  String _selectedStatus = 'All'; // 'All', 'Affectionless', 'InProgress', 'Done'
+  String _priceFilter = 'All'; // 'All', 'High to Low', 'Low to High', 'Free', 'Paid'
+  DateTime? _fromDate;
+  DateTime? _toDate;
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedStatus != 'All') count++;
+    if (_priceFilter != 'All') count++;
+    if (_fromDate != null || _toDate != null) count++;
+    return count;
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -35,11 +50,63 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
   }
 
   List<SteamGameItem> get _filteredGames {
-    if (_searchQuery.trim().isEmpty) {
-      return widget.games;
+    var list = widget.games;
+
+    // 1. Tìm kiếm theo tên game
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      list = list.where((g) => g.name.toLowerCase().contains(q)).toList();
     }
-    final q = _searchQuery.toLowerCase();
-    return widget.games.where((g) => g.name.toLowerCase().contains(q)).toList();
+
+    // 2. Lọc theo trạng thái game
+    if (_selectedStatus != 'All') {
+      list = list.where((g) => g.status == _selectedStatus).toList();
+    }
+
+    // 3. Lọc theo phân loại giá (Free / Paid)
+    if (_priceFilter == 'Free') {
+      list = list
+          .where((g) => g.isFree || (g.finalPrice ?? g.initialPrice ?? 0) == 0)
+          .toList();
+    } else if (_priceFilter == 'Paid') {
+      list = list
+          .where((g) => !g.isFree && (g.finalPrice ?? g.initialPrice ?? 0) > 0)
+          .toList();
+    }
+
+    // 4. Lọc theo khoảng ngày (Từ ngày - đến ngày)
+    if (_fromDate != null || _toDate != null) {
+      list = list.where((g) {
+        final d = g.lastPlayed ?? g.addedDate;
+        if (d == null) return false;
+        if (_fromDate != null) {
+          final start = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+          if (d.isBefore(start)) return false;
+        }
+        if (_toDate != null) {
+          final end = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
+          if (d.isAfter(end)) return false;
+        }
+        return true;
+      }).toList();
+    }
+
+    // 5. Sắp xếp theo giá game cao/thấp
+    if (_priceFilter == 'High to Low') {
+      list = List.of(list)..sort((a, b) {
+        final pA = a.finalPrice ?? a.initialPrice ?? 0;
+        final pB = b.finalPrice ?? b.initialPrice ?? 0;
+        return pB.compareTo(pA);
+      });
+    } else if (_priceFilter == 'Low to High') {
+      list = List.of(list)..sort((a, b) {
+        final pA = a.finalPrice ?? a.initialPrice ?? 0;
+        final pB = b.finalPrice ?? b.initialPrice ?? 0;
+        return pA.compareTo(pB);
+      });
+    }
+
+    return list;
   }
 
   int get _totalPages {
@@ -82,7 +149,7 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
   @override
   Widget build(BuildContext context) {
     const bgDark = Color(0xFF0F141D);
-    final isMobile = MediaQuery.of(context).size.width < 768;
+    final isMobile = MediaQuery.of(context).size.width < 820;
     final filtered = _filteredGames;
     final totalGames = filtered.length;
     final totalPages = _totalPages;
@@ -130,9 +197,15 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                         _buildBreadcrumbs(),
                         const SizedBox(height: 16),
 
-                        // Header Bar: Title, Search, Total Count
+                        // Header Bar: Title, Search, Total Count, Filter Button
                         _buildHeader(totalGames, isMobile),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
+
+                        // Filter Panel (Hiện ra khi bấm nút Filter)
+                        if (_showFilterPanel) ...[
+                          _buildFilterPanel(isMobile),
+                          const SizedBox(height: 16),
+                        ],
 
                         // Games Table
                         _buildGamesTable(pageGames, startIndex),
@@ -221,7 +294,13 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildSearchInput(),
+                Row(
+                  children: [
+                    Expanded(child: _buildSearchInput()),
+                    const SizedBox(width: 8),
+                    _buildFilterToggleButton(),
+                  ],
+                ),
               ],
             )
           : Row(
@@ -234,13 +313,20 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 _buildCountPill(totalGames),
-                const Spacer(),
-                SizedBox(
-                  width: 260,
-                  child: _buildSearchInput(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 240),
+                      child: _buildSearchInput(),
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 10),
+                _buildFilterToggleButton(),
               ],
             ),
     );
@@ -311,6 +397,440 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildFilterToggleButton() {
+    final hasActive = _activeFilterCount > 0;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _showFilterPanel = !_showFilterPanel;
+        });
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: _showFilterPanel
+              ? const Color(0xFF1E293B)
+              : const Color(0xFF0F141D),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: hasActive || _showFilterPanel
+                ? const Color(0xFF38BDF8)
+                : const Color(0xFF26374D),
+            width: hasActive ? 1.4 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 17,
+              color: hasActive || _showFilterPanel
+                  ? const Color(0xFF38BDF8)
+                  : const Color(0xFF94A3B8),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Filter',
+              style: TextStyle(
+                color: hasActive || _showFilterPanel
+                    ? const Color(0xFF38BDF8)
+                    : const Color(0xFFCBD5E1),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (hasActive) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$_activeFilterCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterPanel(bool isMobile) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF121926),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF223044)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Filter Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  size: 16,
+                  color: Color(0xFF38BDF8),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Filter & Sort Options',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (_activeFilterCount > 0)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedStatus = 'All';
+                      _priceFilter = 'All';
+                      _fromDate = null;
+                      _toDate = null;
+                      _currentPage = 1;
+                    });
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 15, color: Color(0xFFF87171)),
+                  label: const Text(
+                    'Reset',
+                    style: TextStyle(color: Color(0xFFF87171), fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _showFilterPanel = false;
+                  });
+                },
+                child: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(color: Color(0xFF1E2838), height: 1),
+          const SizedBox(height: 14),
+
+          // 1. Trạng thái (Status)
+          const Text(
+            'STATUS',
+            style: TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildFilterChip(
+                label: 'All',
+                isSelected: _selectedStatus == 'All',
+                onTap: () => setState(() {
+                  _selectedStatus = 'All';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'Affectionless',
+                isSelected: _selectedStatus == 'Affectionless',
+                onTap: () => setState(() {
+                  _selectedStatus = 'Affectionless';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'InProgress',
+                isSelected: _selectedStatus == 'InProgress',
+                onTap: () => setState(() {
+                  _selectedStatus = 'InProgress';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'Done',
+                isSelected: _selectedStatus == 'Done',
+                onTap: () => setState(() {
+                  _selectedStatus = 'Done';
+                  _currentPage = 1;
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 2. Giá game (Price & Sorting)
+          const Text(
+            'PRICE & SORTING',
+            style: TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildFilterChip(
+                label: 'Default',
+                isSelected: _priceFilter == 'All',
+                onTap: () => setState(() {
+                  _priceFilter = 'All';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'Price: High → Low',
+                isSelected: _priceFilter == 'High to Low',
+                onTap: () => setState(() {
+                  _priceFilter = 'High to Low';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'Price: Low → High',
+                isSelected: _priceFilter == 'Low to High',
+                onTap: () => setState(() {
+                  _priceFilter = 'Low to High';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'Free Only',
+                isSelected: _priceFilter == 'Free',
+                onTap: () => setState(() {
+                  _priceFilter = 'Free';
+                  _currentPage = 1;
+                }),
+              ),
+              _buildFilterChip(
+                label: 'Paid Only',
+                isSelected: _priceFilter == 'Paid',
+                onTap: () => setState(() {
+                  _priceFilter = 'Paid';
+                  _currentPage = 1;
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 3. Từ ngày - Đến ngày (Date range)
+          const Text(
+            'DATE RANGE (LAST PLAYED / ACTIVITY)',
+            style: TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildDateSelectorButton(
+                label: _fromDate != null ? 'From: ${_formatDate(_fromDate)}' : 'From Date',
+                isSelected: _fromDate != null,
+                onTap: () async {
+                  final picked = await _pickDate(_fromDate ?? DateTime.now());
+                  if (picked != null) {
+                    setState(() {
+                      _fromDate = picked;
+                      _currentPage = 1;
+                    });
+                  }
+                },
+              ),
+              const Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF64748B)),
+              _buildDateSelectorButton(
+                label: _toDate != null ? 'To: ${_formatDate(_toDate)}' : 'To Date',
+                isSelected: _toDate != null,
+                onTap: () async {
+                  final picked = await _pickDate(_toDate ?? DateTime.now());
+                  if (picked != null) {
+                    setState(() {
+                      _toDate = picked;
+                      _currentPage = 1;
+                    });
+                  }
+                },
+              ),
+              if (_fromDate != null || _toDate != null)
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _fromDate = null;
+                      _toDate = null;
+                      _currentPage = 1;
+                    });
+                  },
+                  child: const Text('Clear dates', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF0284C7).withValues(alpha: 0.25)
+              : const Color(0xFF0F141D),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF38BDF8)
+                : const Color(0xFF26374D),
+            width: isSelected ? 1.3 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8),
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateSelectorButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF0284C7).withValues(alpha: 0.25)
+              : const Color(0xFF0F141D),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF38BDF8)
+                : const Color(0xFF26374D),
+            width: isSelected ? 1.3 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 14,
+              color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFFCBD5E1),
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<DateTime?> _pickDate(DateTime initial) async {
+    return await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2035),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF0284C7),
+              onPrimary: Colors.white,
+              surface: Color(0xFF141C28),
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Color(0xFF141C28),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '';
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   Widget _buildGamesTable(List<SteamGameItem> games, int startIndex) {

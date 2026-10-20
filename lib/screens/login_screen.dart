@@ -17,9 +17,108 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
-  /// Hộp thoại đăng nhập nhanh cho Windows Desktop (do plugin google_sign_in không hỗ trợ Windows)
-  Future<String?> _showWindowsLoginDialog() async {
-    final emailController = TextEditingController(text: 'admin@songtinhcam.com');
+  /// Hộp thoại hướng dẫn chi tiết khi gặp lỗi cấu hình Google Sign-In Error 10 (DEVELOPER_ERROR)
+  Future<String?> _showGoogleError10Dialog() async {
+    const sha1Fingerprint = '26:4B:D0:A4:05:55:6E:EA:53:E2:41:69:1D:F2:31:FF:1F:A3:D2:3C';
+    const packageName = 'com.example.songtinhcam';
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF141C28),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFF223044), width: 1.2),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.security, color: Color(0xFF38BDF8), size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Google Login Setup (Error 10)',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Google Play Services returned Error 10 (DEVELOPER_ERROR). '
+              'To enable native Google sign-in on Android, add this build\'s SHA-1 fingerprint to your Google Cloud Console OAuth 2.0 Client ID for Android:',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.45),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B0F17),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF1E2838)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Package: $packageName', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontFamily: 'monospace')),
+                  SizedBox(height: 4),
+                  Text('SHA-1: $sha1Fingerprint', style: TextStyle(color: Color(0xFF4ADE80), fontSize: 11, fontFamily: 'monospace')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'You can also log in directly with your email below. Your session will remain saved in the app permanently.',
+              style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 12.5, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(const ClipboardData(text: sha1Fingerprint));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: Color(0xFF15803D),
+                  behavior: SnackBarBehavior.floating,
+                  content: Text('SHA-1 fingerprint copied to clipboard!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy, size: 16, color: Color(0xFF38BDF8)),
+            label: const Text('Copy SHA-1', style: TextStyle(color: Color(0xFF38BDF8))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, 'email'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B62C0),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Login with Email'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Hộp thoại đăng nhập bằng email (dùng cho Desktop hoặc khi Google Sign-In gặp lỗi cấu hình)
+  Future<String?> _showEmailInputDialog({
+    String? title,
+    String? description,
+    String? defaultEmail,
+  }) async {
+    final emailController = TextEditingController(text: defaultEmail ?? '');
     final formKey = GlobalKey<FormState>();
 
     return showDialog<String>(
@@ -39,12 +138,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: const Color(0xFF1E2838),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(Icons.desktop_windows, color: Color(0xFF38BDF8), size: 20),
+              child: const Icon(Icons.email_outlined, color: Color(0xFF38BDF8), size: 20),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'Windows Desktop Login',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                title ?? 'Login with Email',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -55,7 +156,8 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Google Login is not supported on Windows platform. Please enter your email to continue:',
+                description ??
+                    'Enter your email address to sync history and backup Steam Calculator data:',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 16),
@@ -64,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 autofocus: true,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Email Address',
                   labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
                   prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF38BDF8), size: 20),
                   filled: true,
@@ -114,62 +216,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _handleEmailLogin() async {
-    String? email;
-    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux);
-
-    if (isDesktopPlatform) {
-      email = await _showWindowsLoginDialog();
-      if (email == null) return;
-
-      AuthService.instance.setLoggedInUser(
-        email: email,
-        displayName: email.split('@').first,
-      );
-    } else {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        email = await AuthService.instance.signInWithGoogle();
-      } on MissingPluginException {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-        email = await _showWindowsLoginDialog();
-        if (email == null) return;
-        AuthService.instance.setLoggedInUser(
-          email: email,
-          displayName: email.split('@').first,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFFDC2626),
-            behavior: SnackBarBehavior.floating,
-            content: Text(
-              'Error Google Login: ${e.toString().replaceAll("Exception: ", "")}',
-            ),
-          ),
-        );
-        return;
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (email == null) {
-      return;
-    }
+  Future<void> _completeLogin(String email) async {
+    AuthService.instance.setLoggedInUser(
+      email: email,
+      displayName: email.split('@').first,
+    );
 
     // Check if there is a saved Steam ID in local SQLite for this email
     final savedSteamId = await DatabaseService.instance.getSavedSteamId(email);
@@ -248,6 +299,90 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     Navigator.pop(context);
+  }
+
+  Future<void> _handleEmailLogin() async {
+    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+    if (isDesktopPlatform) {
+      final email = await _showEmailInputDialog(
+        title: 'Desktop Login',
+        description: 'Google Play Services is not supported on Desktop. Please enter your email to continue:',
+      );
+      if (email == null) return;
+      await _completeLogin(email);
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    String? email;
+    try {
+      email = await AuthService.instance.signInWithGoogle();
+    } on MissingPluginException {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      email = await _showEmailInputDialog();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Lỗi Google Play Services (như error 10 / DEVELOPER_ERROR khi chưa liên kết SHA-1 trên Google Cloud)
+      final errorStr = e.toString();
+      final isDevError10 = errorStr.contains('10') || errorStr.contains('sign_in_failed');
+
+      if (isDevError10) {
+        final choice = await _showGoogleError10Dialog();
+        if (choice == 'email') {
+          email = await _showEmailInputDialog(
+            title: 'Account Email Login',
+            description:
+                'Enter your real email address. Your account will stay saved in the app permanently until you logout:',
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1E2838),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFF38BDF8), size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Google Login: ${errorStr.replaceAll("Exception: ", "")}',
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        email = await _showEmailInputDialog(
+          title: 'Account Email Login',
+          description:
+              'Enter your real email address. Your account will stay saved in the app permanently until you logout:',
+        );
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (email != null && email.isNotEmpty) {
+      await _completeLogin(email);
+    }
   }
 
   @override
@@ -465,7 +600,37 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () async {
+                                      final email = await _showEmailInputDialog(
+                                        title: 'Direct Email Login',
+                                        description:
+                                            'Enter your email address to sync history and backup data:',
+                                      );
+                                      if (email != null && mounted) {
+                                        await _completeLogin(email);
+                                      }
+                                    },
+                              icon: const Icon(
+                                Icons.edit_note_rounded,
+                                size: 18,
+                                color: Color(0xFF94A3B8),
+                              ),
+                              label: const Text(
+                                'Or enter email directly',
+                                style: TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
 
                           // Thông tin bảo mật
                           Container(

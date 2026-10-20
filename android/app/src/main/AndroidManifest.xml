@@ -5,7 +5,8 @@
         android:label="Affection"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round">
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:enableOnBackInvokedCallback="true">
         <!-- Tắt Impeller trên Android để tránh crash giả lập và thiết bị cũ -->
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"

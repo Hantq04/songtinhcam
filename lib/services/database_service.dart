@@ -42,6 +42,15 @@ class DatabaseService {
         PRIMARY KEY (app_id, currency_code)
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS active_session (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        email TEXT NOT NULL,
+        display_name TEXT,
+        avatar_url TEXT,
+        logged_in_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<Database> _initDatabase() async {
@@ -60,7 +69,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await createTables(db);
       },
@@ -77,6 +86,17 @@ class DatabaseService {
               is_free INTEGER DEFAULT 0,
               updated_at INTEGER NOT NULL,
               PRIMARY KEY (app_id, currency_code)
+            )
+          ''');
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS active_session (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              email TEXT NOT NULL,
+              display_name TEXT,
+              avatar_url TEXT,
+              logged_in_at INTEGER NOT NULL
             )
           ''');
         }
@@ -186,6 +206,49 @@ class DatabaseService {
       'user_profiles',
       where: 'email = ?',
       whereArgs: [email.trim().toLowerCase()],
+    );
+  }
+
+  /// Lưu phiên đăng nhập hiện tại vào SQLite (giúp tài khoản luôn được lưu trong app trừ khi logout hoặc xóa app)
+  Future<void> saveActiveSession({
+    required String email,
+    String? displayName,
+    String? avatarUrl,
+  }) async {
+    final db = await database;
+    await db.insert(
+      'active_session',
+      {
+        'id': 1,
+        'email': email.trim().toLowerCase(),
+        'display_name': displayName?.trim(),
+        'avatar_url': avatarUrl?.trim(),
+        'logged_in_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Lấy phiên đăng nhập đang hoạt động từ SQLite
+  Future<Map<String, dynamic>?> getActiveSession() async {
+    final db = await database;
+    final results = await db.query(
+      'active_session',
+      where: 'id = 1',
+      limit: 1,
+    );
+    if (results.isNotEmpty) {
+      return results.first;
+    }
+    return null;
+  }
+
+  /// Xóa phiên đăng nhập (chỉ gọi khi người dùng chủ động nhấn Logout)
+  Future<void> clearActiveSession() async {
+    final db = await database;
+    await db.delete(
+      'active_session',
+      where: 'id = 1',
     );
   }
 

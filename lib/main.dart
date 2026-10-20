@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'screens/steam_calculator_screen.dart';
+import 'services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.instance.init();
   runApp(const SteamApp());
 }
 
