@@ -121,11 +121,13 @@ void main() {
     });
 
     test('calculateAccount for 76561199168598896 retrieves games with defaultApiKey', () async {
+      // ignore: avoid_print
       print('defaultApiKey in test: "${SteamService.defaultApiKey}"');
       final result = await SteamService.calculateAccount(
         input: '76561199168598896',
         currencyName: 'Vietnamese Dong',
       );
+      // ignore: avoid_print
       print('Profile: ${result.profileName}, games: ${result.games.length}, totalValue: ${result.totalValue}, todayPrice: ${result.todayPrice}');
       expect(result.profileName, 'FahnarT');
       expect(result.games.isNotEmpty, true);

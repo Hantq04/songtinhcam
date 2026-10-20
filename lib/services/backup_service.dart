@@ -28,50 +28,43 @@ class BackupService {
   static const MethodChannel _androidChannel =
       MethodChannel('com.example.songtinhcam/file_picker');
 
-  /// Xuất file backup ra thiết bị theo đường dẫn do người dùng chọn
+  /// Xuất file backup ra thiết bị cho riêng tài khoản email đang đăng nhập
   Future<BackupResult> exportBackup() async {
     try {
-      final profiles = await DatabaseService.instance.getAllUserProfiles();
-
-      // Đảm bảo thông tin user đang login được đưa vào backup
       final auth = AuthService.instance;
-      if (auth.isLoggedIn && auth.userEmail != null) {
-        final email = auth.userEmail!.trim().toLowerCase();
-        final hasCurrent = profiles.any(
-          (p) => (p['email'] as String? ?? '').toLowerCase() == email,
+      if (!auth.isLoggedIn || auth.userEmail == null || auth.userEmail!.trim().isEmpty) {
+        return const BackupResult(
+          success: false,
+          message: 'Please login before exporting backup data.',
         );
-        if (!hasCurrent) {
-          final savedId = await DatabaseService.instance.getSavedSteamId(email);
-          if (savedId != null && savedId.isNotEmpty) {
-            profiles.add({
-              'email': email,
-              'display_name': auth.userName,
-              'steam_id': savedId,
-              'avatar_url': auth.userAvatarUrl,
-              'updated_at': DateTime.now().millisecondsSinceEpoch,
-            });
-          }
-        }
       }
 
+      final currentEmail = auth.userEmail!.trim().toLowerCase();
+      final userProfile = await DatabaseService.instance.getUserProfile(currentEmail);
+      final savedSteamId = await DatabaseService.instance.getSavedSteamId(currentEmail);
+
       final now = DateTime.now();
+      final profileData = {
+        'email': currentEmail,
+        'display_name': userProfile?['display_name'] ?? auth.userName,
+        'steam_id': savedSteamId ?? userProfile?['steam_id'] ?? '',
+        'avatar_url': userProfile?['avatar_url'] ?? auth.userAvatarUrl,
+        'updated_at': userProfile?['updated_at'] ?? now.millisecondsSinceEpoch,
+      };
+
+      final emailName =
+          currentEmail.split('@').first.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
       final dateStr =
           '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
-      final defaultFileName = 'songtinhcam_backup_$dateStr.json';
+      final defaultFileName = 'songtinhcam_${emailName}_$dateStr.json';
 
       final backupData = {
         'app': 'songtinhcam',
         'version': '1.2.0',
         'exported_at': now.toIso8601String(),
-        'profiles_count': profiles.length,
-        'user_profiles': profiles,
-        'current_account': auth.isLoggedIn
-            ? {
-                'email': auth.userEmail,
-                'name': auth.userName,
-                'avatar': auth.userAvatarUrl,
-              }
-            : null,
+        'account_email': currentEmail,
+        'user_profile': profileData,
+        'user_profiles': [profileData], // Giữ danh sách chứa riêng profile này để tương thích
       };
 
       final jsonContent =
@@ -83,7 +76,7 @@ class BackupService {
           return const BackupResult(
             success: false,
             cancelled: true,
-            message: 'Đã hủy thao tác lưu file.',
+            message: 'File save operation cancelled.',
           );
         }
         final file = File(chosenPath);
@@ -94,9 +87,9 @@ class BackupService {
             file.uri.pathSegments.isNotEmpty ? file.uri.pathSegments.last : chosenPath;
         return BackupResult(
           success: true,
-          message: 'Xuất file thành công: $displayPath',
+          message: 'Backup exported successfully: $displayPath',
           filePath: chosenPath,
-          count: profiles.length,
+          count: 1,
         );
       } else if (!kIsWeb && Platform.isAndroid) {
         final result = await _androidChannel.invokeMethod('saveFile', {
@@ -108,28 +101,28 @@ class BackupService {
           return const BackupResult(
             success: false,
             cancelled: true,
-            message: 'Đã hủy thao tác lưu file.',
+            message: 'File save operation cancelled.',
           );
         }
 
         AuthService.instance.updateBackupTime(now);
         return BackupResult(
           success: true,
-          message: 'Xuất file thành công: $defaultFileName',
+          message: 'Backup exported successfully: $defaultFileName',
           filePath: defaultFileName,
-          count: profiles.length,
+          count: 1,
         );
       } else {
         return const BackupResult(
           success: false,
-          message: 'Nền tảng này chưa hỗ trợ chọn file xuất.',
+          message: 'File export is not supported on this platform.',
         );
       }
     } catch (e) {
       debugPrint('Export error: $e');
       return BackupResult(
         success: false,
-        message: 'Lỗi xuất backup: $e',
+        message: 'Export backup error: $e',
       );
     }
   }
@@ -146,7 +139,7 @@ class BackupService {
           return const BackupResult(
             success: false,
             cancelled: true,
-            message: 'Đã hủy chọn file.',
+            message: 'File selection cancelled.',
           );
         }
 
@@ -154,7 +147,7 @@ class BackupService {
         if (!await file.exists()) {
           return const BackupResult(
             success: false,
-            message: 'File đã chọn không tồn tại.',
+            message: 'Selected file does not exist.',
           );
         }
 
@@ -168,7 +161,7 @@ class BackupService {
           return const BackupResult(
             success: false,
             cancelled: true,
-            message: 'Đã hủy chọn file.',
+            message: 'File selection cancelled.',
           );
         }
 
@@ -178,14 +171,14 @@ class BackupService {
       } else {
         return const BackupResult(
           success: false,
-          message: 'Nền tảng này chưa hỗ trợ chọn file nhập.',
+          message: 'File import is not supported on this platform.',
         );
       }
 
       if (jsonContent == null || jsonContent.trim().isEmpty) {
         return const BackupResult(
           success: false,
-          message: 'File đã chọn bị trống.',
+          message: 'Selected file is empty.',
         );
       }
 
@@ -193,13 +186,22 @@ class BackupService {
       List<Map<String, dynamic>> profilesToImport = [];
 
       if (decoded is Map<String, dynamic>) {
-        if (decoded.containsKey('user_profiles') &&
+        if (decoded.containsKey('user_profile') &&
+            decoded['user_profile'] is Map) {
+          profilesToImport.add(
+              Map<String, dynamic>.from(decoded['user_profile'] as Map));
+        } else if (decoded.containsKey('account') &&
+            decoded['account'] is Map) {
+          profilesToImport
+              .add(Map<String, dynamic>.from(decoded['account'] as Map));
+        } else if (decoded.containsKey('user_profiles') &&
             decoded['user_profiles'] is List) {
           profilesToImport = (decoded['user_profiles'] as List)
               .map((item) => Map<String, dynamic>.from(item as Map))
               .toList();
         } else if (decoded.containsKey('email') &&
-            decoded.containsKey('steam_id')) {
+            (decoded.containsKey('steam_id') ||
+                decoded.containsKey('steamId'))) {
           profilesToImport.add(decoded);
         }
       } else if (decoded is List) {
@@ -211,7 +213,7 @@ class BackupService {
       if (profilesToImport.isEmpty) {
         return BackupResult(
           success: false,
-          message: 'Không tìm thấy dữ liệu profile hợp lệ trong $fileName.',
+          message: 'No valid profile data found in $fileName.',
         );
       }
 
@@ -221,7 +223,7 @@ class BackupService {
 
       return BackupResult(
         success: true,
-        message: 'Đã nhập thành công $count profile từ $fileName!',
+        message: 'Successfully imported $count profile(s) from $fileName!',
         filePath: fileName,
         count: count,
       );
@@ -229,7 +231,7 @@ class BackupService {
       debugPrint('Import error: $e');
       return BackupResult(
         success: false,
-        message: 'Lỗi đọc file: $e',
+        message: 'Error reading file: $e',
       );
     }
   }
@@ -241,7 +243,7 @@ Add-Type -AssemblyName System.Windows.Forms
 $form = New-Object System.Windows.Forms.Form
 $form.TopMost = $true
 $d = New-Object System.Windows.Forms.OpenFileDialog
-$d.Title = "Chọn file Backup JSON (SongTinhCam)"
+$d.Title = "Select Backup JSON File (Steam Calculator)"
 $d.Filter = "JSON Backup (*.json)|*.json|All Files (*.*)|*.*"
 $res = $d.ShowDialog($form)
 $form.Dispose()
@@ -271,7 +273,7 @@ Add-Type -AssemblyName System.Windows.Forms
 \$form = New-Object System.Windows.Forms.Form
 \$form.TopMost = \$true
 \$d = New-Object System.Windows.Forms.SaveFileDialog
-\$d.Title = "Lưu file Backup JSON (SongTinhCam)"
+\$d.Title = "Save Backup JSON File (Steam Calculator)"
 \$d.Filter = "JSON Backup (*.json)|*.json|All Files (*.*)|*.*"
 \$d.FileName = "$defaultFileName"
 \$res = \$d.ShowDialog(\$form)

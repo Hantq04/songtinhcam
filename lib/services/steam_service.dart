@@ -613,12 +613,12 @@ class SteamService {
             }
           }
 
-          // Game miễn phí hoặc không còn kinh doanh
+          // Game is free or no longer available
           game.initialPrice = 0;
           game.finalPrice = 0;
           game.discountPercent = 0;
-          game.initialPriceFormatted = currencyCode == 'VND' ? 'Miễn phí' : 'Free';
-          game.finalPriceFormatted = currencyCode == 'VND' ? 'Miễn phí' : 'Free';
+          game.initialPriceFormatted = 'Free';
+          game.finalPriceFormatted = 'Free';
           game.isFree = true;
         }
       } catch (_) {
@@ -729,7 +729,7 @@ class SteamService {
     for (final game in games) {
       if (game.isFree) {
         game.lowestPrice = 0;
-        game.lowestPriceFormatted = currencyCode == 'VND' ? 'Miễn phí' : 'Free';
+        game.lowestPriceFormatted = 'Free';
         continue;
       }
 
@@ -876,9 +876,9 @@ class SteamService {
       if (bytes.isNotEmpty) return bytes;
     } catch (_) {}
 
-    // 2. DoH + Socket fallback cho người dùng không bật 1.1.1.1
+    // 2. DoH + Socket fallback
     final ips = await _resolveHostAllIps(uri.host);
-    if (ips.isEmpty) throw Exception('Không thể phân giải: ${uri.host}');
+    if (ips.isEmpty) throw Exception('Unable to resolve: ${uri.host}');
 
     for (final ip in ips) {
       try {
@@ -937,6 +937,6 @@ class SteamService {
       } catch (_) {}
     }
 
-    throw Exception('Không thể tải hình ảnh từ ${uri.host}');
+    throw Exception('Unable to load image from ${uri.host}');
   }
 }

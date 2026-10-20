@@ -651,7 +651,7 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Please sign in to view your profile and link your Steam ID for automatic account calculation.',
+                  'Please login to view your profile and link your Steam ID for automatic account calculation.',
                   style: TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 13,
@@ -816,6 +816,7 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
                     controller: _steamIdController,
+                    onChanged: (_) => setState(() {}),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13.5,
@@ -876,14 +877,16 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                             )
                           : const Text('Calculate'),
                     ),
-                  if (_steamIdController.text.trim().isNotEmpty)
-                    const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1B62C0),
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: (_isSaving || _isCalculating) ? null : _saveSteamId,
+                    onPressed: (_isSaving ||
+                            _isCalculating ||
+                            _steamIdController.text.trim().isEmpty)
+                        ? null
+                        : _saveSteamId,
                     child: const Text('Save'),
                   ),
                 ],
@@ -912,7 +915,7 @@ class _BackupDialogState extends State<_BackupDialog> {
     final messenger = ScaffoldMessenger.of(widget.parentContext);
     setState(() {
       _isLoading = true;
-      _loadingAction = 'Đang chọn file import...';
+      _loadingAction = 'Selecting file to import...';
     });
 
     final result = await BackupService.instance.importBackup();
@@ -982,7 +985,7 @@ class _BackupDialogState extends State<_BackupDialog> {
     final messenger = ScaffoldMessenger.of(widget.parentContext);
     setState(() {
       _isLoading = true;
-      _loadingAction = 'Đang chọn nơi lưu file...';
+      _loadingAction = 'Choosing save location...';
     });
 
     final result = await BackupService.instance.exportBackup();
@@ -1099,7 +1102,7 @@ class _BackupDialogState extends State<_BackupDialog> {
                             ),
                             SizedBox(height: 2),
                             Text(
-                              'Sao lưu & Khôi phục dữ liệu',
+                              'Profile & Steam ID Backup',
                               style: TextStyle(
                                 color: Color(0xFF64748B),
                                 fontSize: 12,
@@ -1146,11 +1149,14 @@ class _BackupDialogState extends State<_BackupDialog> {
                               const Icon(Icons.history,
                                   size: 15, color: Color(0xFF94A3B8)),
                               const SizedBox(width: 6),
-                              Text(
-                                'Lần backup gần nhất: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour.toString().padLeft(2, '0')}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} - ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "Chưa sao lưu"}',
-                                style: const TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                  fontSize: 12,
+                              Expanded(
+                                child: Text(
+                                  'Last backup: ${auth.lastBackupTime != null ? "${auth.lastBackupTime!.hour.toString().padLeft(2, '0')}:${auth.lastBackupTime!.minute.toString().padLeft(2, '0')} - ${auth.lastBackupTime!.day}/${auth.lastBackupTime!.month}/${auth.lastBackupTime!.year}" : "Never backed up"}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF94A3B8),
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -1160,7 +1166,7 @@ class _BackupDialogState extends State<_BackupDialog> {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Bạn có thể xuất dữ liệu profile và Steam ID đã lưu ra file trên máy, hoặc chọn file từ máy để khôi phục lại khi cần.',
+                      'You can export your saved profile and Steam ID to a file on your device, or select a backup file to restore anytime.',
                       style: TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 12.5,
@@ -1169,7 +1175,7 @@ class _BackupDialogState extends State<_BackupDialog> {
                     ),
                   ] else ...[
                     const Text(
-                      'Đăng nhập để đồng bộ và sao lưu lịch sử tính toán, danh sách Steam ID và profile của bạn.',
+                      'Login to backup and restore your profile and linked Steam ID.',
                       style: TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 13,
@@ -1192,7 +1198,7 @@ class _BackupDialogState extends State<_BackupDialog> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          _loadingAction ?? 'Đang xử lý...',
+                          _loadingAction ?? 'Processing...',
                           style: const TextStyle(
                             color: Color(0xFF38BDF8),
                             fontSize: 12.5,
@@ -1202,75 +1208,79 @@ class _BackupDialogState extends State<_BackupDialog> {
                     ),
                   ],
                   const SizedBox(height: 22),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: _isLoading ? null : () => Navigator.pop(ctx),
-                        child: const Text(
-                          'Đóng',
-                          style: TextStyle(color: Color(0xFF94A3B8)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (!isLoggedIn)
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1B62C0),
-                            foregroundColor: Colors.white,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: _isLoading ? null : () => Navigator.pop(ctx),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(color: Color(0xFF94A3B8)),
                           ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Navigator.push(
-                              widget.parentContext,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
+                        ),
+                        if (!isLoggedIn)
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1B62C0),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              Navigator.push(
+                                widget.parentContext,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text('Login'),
+                          )
+                        else ...[
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF38BDF8)),
+                              foregroundColor: const Color(0xFF38BDF8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 9),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            );
-                          },
-                          child: const Text('Đăng nhập'),
-                        )
-                      else ...[
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF38BDF8)),
-                            foregroundColor: const Color(0xFF38BDF8),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 9),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            onPressed:
+                                _isLoading ? null : _handleImport,
+                            icon: const Icon(Icons.file_upload_outlined, size: 16),
+                            label: const Text(
+                              'Import',
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
-                          onPressed:
-                              _isLoading ? null : _handleImport,
-                          icon: const Icon(Icons.file_upload_outlined, size: 16),
-                          label: const Text(
-                            'Import',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF15803D),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 9),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF15803D),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 9),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed:
+                                _isLoading ? null : _handleExport,
+                            icon:
+                                const Icon(Icons.file_download_outlined, size: 16),
+                            label: const Text(
+                              'Export',
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
-                          onPressed:
-                              _isLoading ? null : _handleExport,
-                          icon:
-                              const Icon(Icons.file_download_outlined, size: 16),
-                          label: const Text(
-                            'Export',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ],
               ),

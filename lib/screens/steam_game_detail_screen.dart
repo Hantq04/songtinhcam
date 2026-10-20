@@ -498,7 +498,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
     final currentPriceStr = widget.game.finalPriceFormatted ??
         (widget.game.finalPrice != null
             ? SteamFormatters.formatAmount(widget.game.finalPrice!, widget.currencyName)
-            : (isFree ? 'Miễn phí (Free)' : '—'));
+            : (isFree ? 'Free' : '—'));
 
     return Container(
       decoration: BoxDecoration(
@@ -511,7 +511,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Thông tin game',
+            'Game Information',
             style: TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -522,7 +522,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
 
           // Grid / List of details
           _buildDetailRow(
-            label: 'Giá gốc',
+            label: 'Original Price',
             valueWidget: Text(
               originalPriceStr,
               style: TextStyle(
@@ -536,10 +536,10 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
           const Divider(color: Color(0xFF1E2838), height: 16),
 
           _buildDetailRow(
-            label: 'Giá đang giảm',
+            label: 'Current Price',
             valueWidget: isFree
                 ? const Text(
-                    'Miễn phí (Free)',
+                    'Free',
                     style: TextStyle(
                       color: Color(0xFF34D399),
                       fontSize: 14,
@@ -582,7 +582,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
 
           if (isDiscounted) ...[
             _buildDetailRow(
-              label: '% Giảm giá',
+              label: 'Discount',
               valueWidget: Text(
                 '-${widget.game.discountPercent}%',
                 style: const TextStyle(
@@ -627,7 +627,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
   }
 
   String _getOriginalPriceText() {
-    if (widget.game.isFree) return 'Miễn phí (Free)';
+    if (widget.game.isFree) return 'Free';
     if (widget.game.initialPriceFormatted != null &&
         widget.game.initialPriceFormatted!.isNotEmpty) {
       return widget.game.initialPriceFormatted!;

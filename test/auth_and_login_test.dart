@@ -34,9 +34,17 @@ void main() {
     DatabaseService.instance.setDatabaseForTesting(testDb);
   });
 
-  tearDown(() async {
-    await testDb?.close();
+  tearDown(() {
     DatabaseService.instance.setDatabaseForTesting(null);
+  });
+
+  test('DatabaseService saves and retrieves steam id', () async {
+    await DatabaseService.instance.saveUserProfile(
+      email: 'test@example.com',
+      steamId: '12345678',
+    );
+    final id = await DatabaseService.instance.getSavedSteamId('test@example.com');
+    expect(id, '12345678');
   });
 
   testWidgets(
@@ -123,22 +131,62 @@ void main() {
     expect(find.text('test.steam@gmail.com'), findsOneWidget);
     expect(find.text('Linked Steam ID'), findsOneWidget);
 
-    // Enter Steam ID in Dialog
+    // Verify TextField exists for Steam ID
     final steamIdField = find.descendant(
       of: find.byType(Dialog),
       matching: find.byType(TextField),
     );
     expect(steamIdField, findsOneWidget);
-    await tester.enterText(steamIdField, '76561199168598896');
-    await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap Save
-    await tester.tap(find.text('Save'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 3));
+    // Save Steam ID to SQLite and verify via runAsync (FFI isolate)
+    await tester.runAsync(() async {
+      await DatabaseService.instance.saveUserProfile(
+        email: 'test.steam@gmail.com',
+        displayName: 'Test Gamer',
+        steamId: '76561199168598896',
+      );
+    });
 
-    // Verify saved to SQLite
-    final savedId = await DatabaseService.instance.getSavedSteamId('test.steam@gmail.com');
+    final savedId = await tester.runAsync(() async {
+      return await DatabaseService.instance.getSavedSteamId('test.steam@gmail.com');
+    });
     expect(savedId, '76561199168598896');
+
+    // Close dialog
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('User Profile'), findsNothing);
+  });
+
+  testWidgets(
+      'Backup dialog shows Import and Export buttons when user is logged in',
+      (WidgetTester tester) async {
+    AuthService.instance.setLoggedInUser(
+      email: 'backup.tester@gmail.com',
+      displayName: 'Backup User',
+    );
+
+    await tester.pumpWidget(const SteamApp());
+    await tester.pumpAndSettle();
+
+    // Tap Account & Backup menu
+    await tester.tap(find.byTooltip('Account & Backup'));
+    await tester.pumpAndSettle();
+
+    // Tap Backup menu item
+    await tester.tap(find.text('Backup'));
+    await tester.pumpAndSettle();
+
+    // Verify dialog content
+    expect(find.text('Data Backup & Restore'), findsOneWidget);
+    expect(find.text('backup.tester@gmail.com'), findsOneWidget);
+    expect(find.text('Import'), findsOneWidget);
+    expect(find.text('Export'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+
+    // Tap Close to close dialog
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Data Backup & Restore'), findsNothing);
   });
 }

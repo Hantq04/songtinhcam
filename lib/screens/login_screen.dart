@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Google Sign-In plugin does not support Windows platform. Please enter your email to continue:',
+                'Google Login is not supported on Windows platform. Please enter your email to continue:',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 16),

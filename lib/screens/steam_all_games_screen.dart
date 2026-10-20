@@ -492,7 +492,7 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                 icon: Icons.chevron_left,
                 enabled: _currentPage > 1,
                 onTap: () => _goToPage(_currentPage - 1),
-                tooltip: 'Trang trước',
+                tooltip: 'Previous page',
               ),
               const SizedBox(width: 6),
 
@@ -505,7 +505,7 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                 icon: Icons.chevron_right,
                 enabled: _currentPage < totalPages,
                 onTap: () => _goToPage(_currentPage + 1),
-                tooltip: 'Trang sau',
+                tooltip: 'Next page',
               ),
             ],
           );
@@ -514,7 +514,7 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
             return Column(
               children: [
                 Text(
-                  'Hiển thị ${startIndex + 1} - $endIndex trên $totalGames game (Trang $_currentPage/$totalPages)',
+                  'Showing ${startIndex + 1} - $endIndex of $totalGames games (Page $_currentPage/$totalPages)',
                   style: const TextStyle(color: Color(0xFF8F9DAE), fontSize: 12),
                 ),
                 const SizedBox(height: 10),
@@ -527,7 +527,7 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Hiển thị ${startIndex + 1} - $endIndex trên $totalGames game',
+                'Showing ${startIndex + 1} - $endIndex of $totalGames games',
                 style: const TextStyle(color: Color(0xFF8F9DAE), fontSize: 13),
               ),
               paginationControls,

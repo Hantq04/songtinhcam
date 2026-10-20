@@ -25,7 +25,7 @@ class AuthService extends ChangeNotifier {
   /// Đăng nhập trực tiếp bằng tài khoản Google thật của người dùng trên thiết bị
   Future<String?> signInWithGoogle() async {
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
-      debugPrint('Google Sign-In is not supported on Windows/Linux desktop.');
+      debugPrint('Google Login is not supported on Windows/Linux desktop.');
       return null;
     }
     try {
