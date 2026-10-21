@@ -15,7 +15,9 @@ void main() {
     expect(find.text('Get disappointed in your life'), findsOneWidget);
   });
 
-  testWidgets('SteamResultScreen renders Account Value correctly on mobile', (WidgetTester tester) async {
+  testWidgets('SteamResultScreen renders Account Value correctly on mobile', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -38,10 +40,7 @@ void main() {
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: SteamResultScreen(
-          result: result,
-          currencyName: 'VND',
-        ),
+        home: SteamResultScreen(result: result, currencyName: 'VND'),
       ),
     );
 

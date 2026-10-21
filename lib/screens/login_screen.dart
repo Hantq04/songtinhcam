@@ -1,7 +1,9 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../services/steam_service.dart';
@@ -19,7 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Hộp thoại hướng dẫn chi tiết khi gặp lỗi cấu hình Google Sign-In Error 10 (DEVELOPER_ERROR)
   Future<String?> _showGoogleError10Dialog() async {
-    const sha1Fingerprint = '26:4B:D0:A4:05:55:6E:EA:53:E2:41:69:1D:F2:31:FF:1F:A3:D2:3C';
+    const sha1Fingerprint =
+        '26:4B:D0:A4:05:55:6E:EA:53:E2:41:69:1D:F2:31:FF:1F:A3:D2:3C';
     const packageName = 'com.example.songtinhcam';
 
     return showDialog<String>(
@@ -39,13 +42,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: const Color(0xFF0284C7).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(Icons.security, color: Color(0xFF38BDF8), size: 20),
+              child: const Icon(
+                Icons.security,
+                color: Color(0xFF38BDF8),
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             const Expanded(
               child: Text(
                 'Google Login Setup (Error 10)',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -57,7 +68,11 @@ class _LoginScreenState extends State<LoginScreen> {
             const Text(
               'Google Play Services returned Error 10 (DEVELOPER_ERROR). '
               'To enable native Google sign-in on Android, add this build\'s SHA-1 fingerprint to your Google Cloud Console OAuth 2.0 Client ID for Android:',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.45),
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 13,
+                height: 1.45,
+              ),
             ),
             const SizedBox(height: 12),
             Container(
@@ -70,16 +85,34 @@ class _LoginScreenState extends State<LoginScreen> {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Package: $packageName', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontFamily: 'monospace')),
+                  Text(
+                    'Package: $packageName',
+                    style: TextStyle(
+                      color: Color(0xFF38BDF8),
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
                   SizedBox(height: 4),
-                  Text('SHA-1: $sha1Fingerprint', style: TextStyle(color: Color(0xFF4ADE80), fontSize: 11, fontFamily: 'monospace')),
+                  Text(
+                    'SHA-1: $sha1Fingerprint',
+                    style: TextStyle(
+                      color: Color(0xFF4ADE80),
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
             const Text(
               'You can also log in directly with your email below. Your session will remain saved in the app permanently.',
-              style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 12.5, height: 1.4),
+              style: TextStyle(
+                color: Color(0xFFE2E8F0),
+                fontSize: 12.5,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -97,7 +130,10 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             },
             icon: const Icon(Icons.copy, size: 16, color: Color(0xFF38BDF8)),
-            label: const Text('Copy SHA-1', style: TextStyle(color: Color(0xFF38BDF8))),
+            label: const Text(
+              'Copy SHA-1',
+              style: TextStyle(color: Color(0xFF38BDF8)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, 'email'),
@@ -138,13 +174,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: const Color(0xFF1E2838),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(Icons.email_outlined, color: Color(0xFF38BDF8), size: 20),
+              child: const Icon(
+                Icons.email_outlined,
+                color: Color(0xFF38BDF8),
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 title ?? 'Login with Email',
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -156,9 +200,12 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                description ??
-                    'Enter your email address to sync history and backup Steam Calculator data:',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13, height: 1.4),
+                description ?? 'Enter your email address to sync history and backup Steam Calculator data:',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -168,7 +215,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email Address',
                   labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF38BDF8), size: 20),
+                  prefixIcon: const Icon(
+                    Icons.email_outlined,
+                    color: Color(0xFF38BDF8),
+                    size: 20,
+                  ),
                   filled: true,
                   fillColor: const Color(0xFF0F141D),
                   border: OutlineInputBorder(
@@ -177,7 +228,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF38BDF8),
+                      width: 1.5,
+                    ),
                   ),
                 ),
                 validator: (val) {
@@ -196,7 +250,10 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF94A3B8)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -207,7 +264,9 @@ class _LoginScreenState extends State<LoginScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0284C7),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
             child: const Text('Login'),
           ),
@@ -302,7 +361,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleEmailLogin() async {
-    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isLinux);
+    final isDesktopPlatform =
+        !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
     if (isDesktopPlatform) {
       final email = await _showEmailInputDialog(
@@ -335,15 +395,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Lỗi Google Play Services (như error 10 / DEVELOPER_ERROR khi chưa liên kết SHA-1 trên Google Cloud)
       final errorStr = e.toString();
-      final isDevError10 = errorStr.contains('10') || errorStr.contains('sign_in_failed');
+      final isDevError10 =
+          errorStr.contains('10') || errorStr.contains('sign_in_failed');
 
       if (isDevError10) {
         final choice = await _showGoogleError10Dialog();
         if (choice == 'email') {
           email = await _showEmailInputDialog(
             title: 'Account Email Login',
-            description:
-                'Enter your real email address. Your account will stay saved in the app permanently until you logout:',
+            description: 'Enter your real email address. Your account will stay saved in the app permanently until you logout:',
           );
         }
       } else {
@@ -351,10 +411,16 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(
             backgroundColor: const Color(0xFF1E2838),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             content: Row(
               children: [
-                const Icon(Icons.info_outline, color: Color(0xFF38BDF8), size: 20),
+                const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF38BDF8),
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -369,8 +435,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         email = await _showEmailInputDialog(
           title: 'Account Email Login',
-          description:
-              'Enter your real email address. Your account will stay saved in the app permanently until you logout:',
+          description: 'Enter your real email address. Your account will stay saved in the app permanently until you logout:',
         );
       }
     }
@@ -399,10 +464,7 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: const BoxDecoration(
                 color: Color(0xFF0B0F17),
                 border: Border(
-                  bottom: BorderSide(
-                    color: Color(0xFF1E2638),
-                    width: 1,
-                  ),
+                  bottom: BorderSide(color: Color(0xFF1E2638), width: 1),
                 ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -517,7 +579,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF1A9FFF).withValues(alpha: 0.35),
+                                  color: const Color(0xFF1A9FFF)
+                                      .withValues(alpha: 0.35),
                                   blurRadius: 18,
                                   offset: const Offset(0, 4),
                                 ),
@@ -608,8 +671,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : () async {
                                       final email = await _showEmailInputDialog(
                                         title: 'Direct Email Login',
-                                        description:
-                                            'Enter your email address to sync history and backup data:',
+                                        description: 'Enter your email address to sync history and backup data:',
                                       );
                                       if (email != null && mounted) {
                                         await _completeLogin(email);
@@ -639,7 +701,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+                              color: const Color(0xFF0F172A)
+                                  .withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
                                 color: const Color(0xFF1E293B),

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+
 import '../services/steam_service.dart';
 
 /// Widget hiển thị ảnh Steam (Avatar, Game capsule, Icon)

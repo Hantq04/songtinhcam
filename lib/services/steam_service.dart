@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import '../models/steam_models.dart';
 import '../utils/steam_formatters.dart';
+import 'auth_service.dart';
 import 'database_service.dart';
 import 'env_service.dart';
 
@@ -119,7 +120,8 @@ class SteamService {
         }
 
         final path = uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
-        final request = 'GET $path HTTP/1.1\r\n'
+        final request =
+            'GET $path HTTP/1.1\r\n'
             'Host: ${uri.host}\r\n'
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n'
             'Accept-Language: en-US,en;q=0.9\r\n'
@@ -272,7 +274,8 @@ class SteamService {
       if (appIdMatch == null) continue;
       final appId = int.parse(appIdMatch.group(1)!);
 
-      final playtimeHours = double.tryParse(
+      final playtimeHours =
+          double.tryParse(
             (hoursOnRecordStr ?? '0').replaceAll(',', '').trim(),
           ) ??
           0.0;
@@ -280,17 +283,19 @@ class SteamService {
         (hoursPlayedStr ?? '0').replaceAll(',', '').trim(),
       );
 
-      xmlGames.add(SteamGameItem(
-        appId: appId,
-        name: gameName,
-        playtimeHours: playtimeHours,
-        recentPlaytimeHours: recentHours,
-        iconUrl: gameIcon,
-        logoUrl: gameLogo,
-        storeUrl: gameLink.isNotEmpty
-            ? gameLink
-            : 'https://store.steampowered.com/app/$appId',
-      ));
+      xmlGames.add(
+        SteamGameItem(
+          appId: appId,
+          name: gameName,
+          playtimeHours: playtimeHours,
+          recentPlaytimeHours: recentHours,
+          iconUrl: gameIcon,
+          logoUrl: gameLogo,
+          storeUrl: gameLink.isNotEmpty
+              ? gameLink
+              : 'https://store.steampowered.com/app/$appId',
+        ),
+      );
     }
 
     // 2. Scrape Profile HTML để lấy Level, Badges count và Total games count
@@ -327,9 +332,8 @@ class SteamService {
           caseSensitive: false,
         ).firstMatch(html);
         if (badgesMatch != null) {
-          badgesCount = int.tryParse(
-                badgesMatch.group(1)!.replaceAll(',', '').trim(),
-              ) ??
+          badgesCount =
+              int.tryParse(badgesMatch.group(1)!.replaceAll(',', '').trim()) ??
               0;
         }
       } catch (_) {}
@@ -368,15 +372,17 @@ class SteamService {
                 ? DateTime.fromMillisecondsSinceEpoch(rtime * 1000)
                 : null;
 
-            games.add(SteamGameItem(
-              appId: appId,
-              name: name,
-              playtimeHours: playtimeHours,
-              iconUrl: iconUrl,
-              logoUrl: logoUrl,
-              storeUrl: 'https://store.steampowered.com/app/$appId',
-              lastPlayed: lastPlayed,
-            ));
+            games.add(
+              SteamGameItem(
+                appId: appId,
+                name: name,
+                playtimeHours: playtimeHours,
+                iconUrl: iconUrl,
+                logoUrl: logoUrl,
+                storeUrl: 'https://store.steampowered.com/app/$appId',
+                lastPlayed: lastPlayed,
+              ),
+            );
           }
           fetchedFromWebApi = true;
         }
@@ -424,16 +430,22 @@ class SteamService {
             game.lowestPriceFormatted = 'Free';
           } else {
             if (game.initialPrice != null) {
-              game.initialPriceFormatted =
-                  _formatAmount(game.initialPrice!, currencyCode);
+              game.initialPriceFormatted = _formatAmount(
+                game.initialPrice!,
+                currencyCode,
+              );
             }
             if (game.finalPrice != null) {
-              game.finalPriceFormatted =
-                  _formatAmount(game.finalPrice!, currencyCode);
+              game.finalPriceFormatted = _formatAmount(
+                game.finalPrice!,
+                currencyCode,
+              );
             }
             if (game.lowestPrice != null) {
-              game.lowestPriceFormatted =
-                  _formatAmount(game.lowestPrice!, currencyCode);
+              game.lowestPriceFormatted = _formatAmount(
+                game.lowestPrice!,
+                currencyCode,
+              );
             }
           }
         }
@@ -463,6 +475,31 @@ class SteamService {
       await DatabaseService.instance.saveGamePrices(recordsToSave);
     } catch (_) {}
 
+    // 4d. Đồng bộ giờ chơi game theo steamId và ghi nhận activity vào SQLite
+    try {
+      if (steamId64.isNotEmpty) {
+        final resolvedUserName =
+            (AuthService.instance.isLoggedIn &&
+                AuthService.instance.userName != null &&
+                AuthService.instance.userName!.trim().isNotEmpty)
+            ? AuthService.instance.userName!
+            : personaName;
+        final resolvedAvatar =
+            (AuthService.instance.isLoggedIn &&
+                AuthService.instance.userAvatarUrl != null &&
+                AuthService.instance.userAvatarUrl!.trim().isNotEmpty)
+            ? AuthService.instance.userAvatarUrl
+            : (avatarMedium ?? avatarFull ?? avatar);
+
+        await DatabaseService.instance.syncGamePlaytimes(
+          steamId: steamId64,
+          games: games,
+          userName: resolvedUserName,
+          avatarUrl: resolvedAvatar,
+        );
+      }
+    } catch (_) {}
+
     // 5. Tính toán thống kê thư viện
     final stats = _calculateLibraryStats(
       games: games,
@@ -473,8 +510,7 @@ class SteamService {
 
     String? statusNote;
     if (visibilityState != null && visibilityState != 3) {
-      statusNote =
-          'Steam profile is set to Private. Some information may not be fully displayed.';
+      statusNote = 'Steam profile is set to Private. Some information may not be fully displayed.';
     } else if (!fetchedFromWebApi) {
       statusNote = stats.note;
     }
@@ -544,8 +580,14 @@ class SteamService {
             final cachedInitial = _appPriceCache[cacheKey]!;
             game.initialPrice = cachedInitial;
             game.finalPrice = cachedInitial;
-            game.initialPriceFormatted = _formatAmount(cachedInitial, currencyCode);
-            game.finalPriceFormatted = _formatAmount(cachedInitial, currencyCode);
+            game.initialPriceFormatted = _formatAmount(
+              cachedInitial,
+              currencyCode,
+            );
+            game.finalPriceFormatted = _formatAmount(
+              cachedInitial,
+              currencyCode,
+            );
             game.isFree = cachedInitial == 0;
             continue;
           }
@@ -558,7 +600,8 @@ class SteamService {
                 final priceOverview = dataObj['price_overview'];
                 if (priceOverview is Map) {
                   // Steam trả về đơn vị tiền tệ nhân 100
-                  final rawInitial = priceOverview['initial'] as num? ??
+                  final rawInitial =
+                      priceOverview['initial'] as num? ??
                       priceOverview['final'] as num? ??
                       0;
                   final rawFinal = priceOverview['final'] as num? ?? 0;
@@ -575,8 +618,14 @@ class SteamService {
                   game.initialPrice = initial;
                   game.finalPrice = finalPrice;
                   game.discountPercent = discount;
-                  game.initialPriceFormatted = _formatAmount(initial, currencyCode);
-                  game.finalPriceFormatted = _formatAmount(finalPrice, currencyCode);
+                  game.initialPriceFormatted = _formatAmount(
+                    initial,
+                    currencyCode,
+                  );
+                  game.finalPriceFormatted = _formatAmount(
+                    finalPrice,
+                    currencyCode,
+                  );
                   game.isFree = false;
 
                   if (initial > 0) {
@@ -610,8 +659,9 @@ class SteamService {
     String currencyCode, [
     Map<int, Map<String, dynamic>> cachedPrices = const {},
   ]) async {
-    final paidGames =
-        games.where((g) => !g.isFree && (g.initialPrice ?? 0) > 0).toList();
+    final paidGames = games
+        .where((g) => !g.isFree && (g.initialPrice ?? 0) > 0)
+        .toList();
     if (paidGames.isEmpty) {
       for (final g in games) {
         final cached = cachedPrices[g.appId];
@@ -648,10 +698,13 @@ class SteamService {
           final client = HttpClient();
           client.connectionTimeout = const Duration(seconds: 4);
           final uri = Uri.parse(
-              'https://www.cheapshark.com/api/1.0/deals?steamAppID=$appIdsStr&sortBy=Price');
+            'https://www.cheapshark.com/api/1.0/deals?steamAppID=$appIdsStr&sortBy=Price',
+          );
           final req = await client.getUrl(uri);
-          req.headers
-              .set('User-Agent', 'SongTinhCam/1.0 (admin@songtinhcam.vn)');
+          req.headers.set(
+            'User-Agent',
+            'SongTinhCam/1.0 (admin@songtinhcam.vn)',
+          );
           final res = await req.close();
           final body = await res.transform(utf8.decoder).join();
           client.close();
@@ -662,8 +715,9 @@ class SteamService {
               final Map<int, String> appToGameId = {};
               for (final d in deals) {
                 if (d is Map) {
-                  final sAppId =
-                      int.tryParse(d['steamAppID']?.toString() ?? '');
+                  final sAppId = int.tryParse(
+                    d['steamAppID']?.toString() ?? '',
+                  );
                   final gId = d['gameID']?.toString();
                   if (sAppId != null &&
                       gId != null &&
@@ -680,10 +734,13 @@ class SteamService {
                   final gClient = HttpClient();
                   gClient.connectionTimeout = const Duration(seconds: 3);
                   final gUri = Uri.parse(
-                      'https://www.cheapshark.com/api/1.0/games?id=$gId');
+                    'https://www.cheapshark.com/api/1.0/games?id=$gId',
+                  );
                   final gReq = await gClient.getUrl(gUri);
                   gReq.headers.set(
-                      'User-Agent', 'SongTinhCam/1.0 (admin@songtinhcam.vn)');
+                    'User-Agent',
+                    'SongTinhCam/1.0 (admin@songtinhcam.vn)',
+                  );
                   final gRes = await gReq.close();
                   final gBody = await gRes.transform(utf8.decoder).join();
                   gClient.close();
@@ -720,7 +777,9 @@ class SteamService {
 
       num candidateLow;
       final ratio = _lowestDiscountRatioCache[game.appId];
-      if (ratio != null && game.initialPrice != null && game.initialPrice! > 0) {
+      if (ratio != null &&
+          game.initialPrice != null &&
+          game.initialPrice! > 0) {
         final calcLow = currencyCode == 'USD'
             ? (game.initialPrice! * ratio)
             : (game.initialPrice! * ratio).round();
@@ -747,8 +806,10 @@ class SteamService {
         game.lowestPrice = candidateLow;
       }
 
-      game.lowestPriceFormatted =
-          _formatAmount(game.lowestPrice!, currencyCode);
+      game.lowestPriceFormatted = _formatAmount(
+        game.lowestPrice!,
+        currencyCode,
+      );
     }
   }
 
@@ -902,7 +963,8 @@ class SteamService {
         }
 
         final path = uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
-        final request = 'GET $path HTTP/1.1\r\n'
+        final request =
+            'GET $path HTTP/1.1\r\n'
             'Host: ${uri.host}\r\n'
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n'
             'Connection: close\r\n\r\n';
@@ -922,8 +984,10 @@ class SteamService {
               rawData[i + 1] == 10 &&
               rawData[i + 2] == 13 &&
               rawData[i + 3] == 10) {
-            final headerStr =
-                utf8.decode(rawData.sublist(0, i), allowMalformed: true);
+            final headerStr = utf8.decode(
+              rawData.sublist(0, i),
+              allowMalformed: true,
+            );
             if (headerStr.contains('301') || headerStr.contains('302')) {
               final locMatch = RegExp(
                 r'Location:\s*([^\r\n]+)',

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
 import 'auth_service.dart';
 import 'database_service.dart';
 
@@ -25,14 +27,17 @@ class BackupService {
   static final BackupService instance = BackupService._();
   BackupService._();
 
-  static const MethodChannel _androidChannel =
-      MethodChannel('com.example.songtinhcam/file_picker');
+  static const MethodChannel _androidChannel = MethodChannel(
+    'com.example.songtinhcam/file_picker',
+  );
 
   /// Xuất file backup ra thiết bị cho riêng tài khoản email đang đăng nhập
   Future<BackupResult> exportBackup() async {
     try {
       final auth = AuthService.instance;
-      if (!auth.isLoggedIn || auth.userEmail == null || auth.userEmail!.trim().isEmpty) {
+      if (!auth.isLoggedIn ||
+          auth.userEmail == null ||
+          auth.userEmail!.trim().isEmpty) {
         return const BackupResult(
           success: false,
           message: 'Please login before exporting backup data.',
@@ -40,8 +45,12 @@ class BackupService {
       }
 
       final currentEmail = auth.userEmail!.trim().toLowerCase();
-      final userProfile = await DatabaseService.instance.getUserProfile(currentEmail);
-      final savedSteamId = await DatabaseService.instance.getSavedSteamId(currentEmail);
+      final userProfile = await DatabaseService.instance.getUserProfile(
+        currentEmail,
+      );
+      final savedSteamId = await DatabaseService.instance.getSavedSteamId(
+        currentEmail,
+      );
 
       final now = DateTime.now();
       final profileData = {
@@ -52,8 +61,10 @@ class BackupService {
         'updated_at': userProfile?['updated_at'] ?? now.millisecondsSinceEpoch,
       };
 
-      final emailName =
-          currentEmail.split('@').first.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+      final emailName = currentEmail
+          .split('@')
+          .first
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
       final dateStr =
           '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
       final defaultFileName = 'songtinhcam_${emailName}_$dateStr.json';
@@ -64,11 +75,13 @@ class BackupService {
         'exported_at': now.toIso8601String(),
         'account_email': currentEmail,
         'user_profile': profileData,
-        'user_profiles': [profileData], // Giữ danh sách chứa riêng profile này để tương thích
+        'user_profiles': [
+          profileData,
+        ], // Giữ danh sách chứa riêng profile này để tương thích
       };
 
-      final jsonContent =
-          const JsonEncoder.withIndent('  ').convert(backupData);
+      final jsonContent = const JsonEncoder.withIndent('  ')
+          .convert(backupData);
 
       if (!kIsWeb && Platform.isWindows) {
         final chosenPath = await _saveFileWindows(defaultFileName, jsonContent);
@@ -83,8 +96,9 @@ class BackupService {
         await file.writeAsString(jsonContent, encoding: utf8);
         AuthService.instance.updateBackupTime(now);
 
-        final displayPath =
-            file.uri.pathSegments.isNotEmpty ? file.uri.pathSegments.last : chosenPath;
+        final displayPath = file.uri.pathSegments.isNotEmpty
+            ? file.uri.pathSegments.last
+            : chosenPath;
         return BackupResult(
           success: true,
           message: 'Backup exported successfully: $displayPath',
@@ -120,10 +134,7 @@ class BackupService {
       }
     } catch (e) {
       debugPrint('Export error: $e');
-      return BackupResult(
-        success: false,
-        message: 'Export backup error: $e',
-      );
+      return BackupResult(success: false, message: 'Export backup error: $e');
     }
   }
 
@@ -189,11 +200,13 @@ class BackupService {
         if (decoded.containsKey('user_profile') &&
             decoded['user_profile'] is Map) {
           profilesToImport.add(
-              Map<String, dynamic>.from(decoded['user_profile'] as Map));
+            Map<String, dynamic>.from(decoded['user_profile'] as Map),
+          );
         } else if (decoded.containsKey('account') &&
             decoded['account'] is Map) {
-          profilesToImport
-              .add(Map<String, dynamic>.from(decoded['account'] as Map));
+          profilesToImport.add(
+            Map<String, dynamic>.from(decoded['account'] as Map),
+          );
         } else if (decoded.containsKey('user_profiles') &&
             decoded['user_profiles'] is List) {
           profilesToImport = (decoded['user_profiles'] as List)
@@ -217,8 +230,9 @@ class BackupService {
         );
       }
 
-      final count =
-          await DatabaseService.instance.importUserProfiles(profilesToImport);
+      final count = await DatabaseService.instance.importUserProfiles(
+        profilesToImport,
+      );
       AuthService.instance.updateBackupTime();
 
       return BackupResult(
@@ -229,10 +243,7 @@ class BackupService {
       );
     } catch (e) {
       debugPrint('Import error: $e');
-      return BackupResult(
-        success: false,
-        message: 'Error reading file: $e',
-      );
+      return BackupResult(success: false, message: 'Error reading file: $e');
     }
   }
 
@@ -267,8 +278,11 @@ if ($res -eq [System.Windows.Forms.DialogResult]::OK) {
 
   /// Hộp thoại lưu file trên Windows (sử dụng PowerShell STA SaveFileDialog)
   Future<String?> _saveFileWindows(
-      String defaultFileName, String content) async {
-    final script = '''
+    String defaultFileName,
+    String content,
+  ) async {
+    final script =
+        '''
 Add-Type -AssemblyName System.Windows.Forms
 \$form = New-Object System.Windows.Forms.Form
 \$form.TopMost = \$true

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/steam_models.dart';
 import '../widgets/steam_image.dart';
 import '../widgets/steam_top_nav_bar.dart';
@@ -8,12 +9,16 @@ class SteamAllGamesScreen extends StatefulWidget {
   final List<SteamGameItem> games;
   final String currencyName;
   final String? profileName;
+  final String? avatarUrl;
+  final String? steamId;
 
   const SteamAllGamesScreen({
     super.key,
     required this.games,
     required this.currencyName,
     this.profileName,
+    this.avatarUrl,
+    this.steamId,
   });
 
   @override
@@ -29,8 +34,10 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
 
   // Filter state
   bool _showFilterPanel = false;
-  String _selectedStatus = 'All'; // 'All', 'Affectionless', 'InProgress', 'Done'
-  String _priceFilter = 'All'; // 'All', 'High to Low', 'Low to High', 'Free', 'Paid'
+  String _selectedStatus =
+      'All'; // 'All', 'Affectionless', 'InProgress', 'Done'
+  String _priceFilter =
+      'All'; // 'All', 'High to Low', 'Low to High', 'Free', 'Paid'
   DateTime? _fromDate;
   DateTime? _toDate;
 
@@ -80,11 +87,22 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
         final d = g.lastPlayed ?? g.addedDate;
         if (d == null) return false;
         if (_fromDate != null) {
-          final start = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+          final start = DateTime(
+            _fromDate!.year,
+            _fromDate!.month,
+            _fromDate!.day,
+          );
           if (d.isBefore(start)) return false;
         }
         if (_toDate != null) {
-          final end = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
+          final end = DateTime(
+            _toDate!.year,
+            _toDate!.month,
+            _toDate!.day,
+            23,
+            59,
+            59,
+          );
           if (d.isAfter(end)) return false;
         }
         return true;
@@ -93,17 +111,19 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
 
     // 5. Sắp xếp theo giá game cao/thấp
     if (_priceFilter == 'High to Low') {
-      list = List.of(list)..sort((a, b) {
-        final pA = a.finalPrice ?? a.initialPrice ?? 0;
-        final pB = b.finalPrice ?? b.initialPrice ?? 0;
-        return pB.compareTo(pA);
-      });
+      list = List.of(list)
+        ..sort((a, b) {
+          final pA = a.finalPrice ?? a.initialPrice ?? 0;
+          final pB = b.finalPrice ?? b.initialPrice ?? 0;
+          return pB.compareTo(pA);
+        });
     } else if (_priceFilter == 'Low to High') {
-      list = List.of(list)..sort((a, b) {
-        final pA = a.finalPrice ?? a.initialPrice ?? 0;
-        final pB = b.finalPrice ?? b.initialPrice ?? 0;
-        return pA.compareTo(pB);
-      });
+      list = List.of(list)
+        ..sort((a, b) {
+          final pA = a.finalPrice ?? a.initialPrice ?? 0;
+          final pB = b.finalPrice ?? b.initialPrice ?? 0;
+          return pA.compareTo(pB);
+        });
     }
 
     return list;
@@ -138,6 +158,8 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
           game: game,
           currencyName: widget.currencyName,
           profileName: widget.profileName,
+          avatarUrl: widget.avatarUrl,
+          steamId: widget.steamId,
         ),
       ),
     );
@@ -213,7 +235,12 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
 
                         // Pagination Bar with < > and Page Numbers
                         if (totalPages > 1) ...[
-                          _buildPaginationBar(totalPages, startIndex, endIndex, totalGames),
+                          _buildPaginationBar(
+                            totalPages,
+                            startIndex,
+                            endIndex,
+                            totalGames,
+                          ),
                           const SizedBox(height: 36),
                         ],
                       ],
@@ -257,10 +284,7 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                 ? '${widget.profileName} / All Games'
                 : 'All Games',
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
           ),
         ),
       ],
@@ -392,7 +416,11 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                   _currentPage = 1;
                 });
               },
-              child: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+              child: const Icon(
+                Icons.close,
+                size: 16,
+                color: Color(0xFF94A3B8),
+              ),
             ),
         ],
       ),
@@ -522,13 +550,24 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                       _currentPage = 1;
                     });
                   },
-                  icon: const Icon(Icons.refresh_rounded, size: 15, color: Color(0xFFF87171)),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    size: 15,
+                    color: Color(0xFFF87171),
+                  ),
                   label: const Text(
                     'Reset',
-                    style: TextStyle(color: Color(0xFFF87171), fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Color(0xFFF87171),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -540,7 +579,11 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                     _showFilterPanel = false;
                   });
                 },
-                child: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
+                child: const Icon(
+                  Icons.close,
+                  size: 20,
+                  color: Color(0xFF64748B),
+                ),
               ),
             ],
           ),
@@ -675,7 +718,9 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _buildDateSelectorButton(
-                label: _fromDate != null ? 'From: ${_formatDate(_fromDate)}' : 'From Date',
+                label: _fromDate != null
+                    ? 'From: ${_formatDate(_fromDate)}'
+                    : 'From Date',
                 isSelected: _fromDate != null,
                 onTap: () async {
                   final picked = await _pickDate(_fromDate ?? DateTime.now());
@@ -687,9 +732,15 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                   }
                 },
               ),
-              const Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF64748B)),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: Color(0xFF64748B),
+              ),
               _buildDateSelectorButton(
-                label: _toDate != null ? 'To: ${_formatDate(_toDate)}' : 'To Date',
+                label: _toDate != null
+                    ? 'To: ${_formatDate(_toDate)}'
+                    : 'To Date',
                 isSelected: _toDate != null,
                 onTap: () async {
                   final picked = await _pickDate(_toDate ?? DateTime.now());
@@ -710,7 +761,10 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                       _currentPage = 1;
                     });
                   },
-                  child: const Text('Clear dates', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                  child: const Text(
+                    'Clear dates',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                  ),
                 ),
             ],
           ),
@@ -745,7 +799,9 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8),
+            color: isSelected
+                ? const Color(0xFF38BDF8)
+                : const Color(0xFF94A3B8),
             fontSize: 12.5,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),
@@ -783,13 +839,17 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
             Icon(
               Icons.calendar_today_rounded,
               size: 14,
-              color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
+              color: isSelected
+                  ? const Color(0xFF38BDF8)
+                  : const Color(0xFF64748B),
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFFCBD5E1),
+                color: isSelected
+                    ? const Color(0xFF38BDF8)
+                    : const Color(0xFFCBD5E1),
                 fontSize: 12.5,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               ),
@@ -868,10 +928,8 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: games.length,
-        separatorBuilder: (_, _) => const Divider(
-          color: Color(0xFF1B2533),
-          height: 1,
-        ),
+        separatorBuilder: (_, _) =>
+            const Divider(color: Color(0xFF1B2533), height: 1),
         itemBuilder: (context, index) {
           final game = games[index];
           final globalIndex = startIndex + index + 1;
@@ -881,7 +939,9 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
           return InkWell(
             onTap: () => _openGameDetail(game),
             child: Container(
-              color: index.isEven ? const Color(0xFF121926) : const Color(0xFF0F1520),
+              color: index.isEven
+                  ? const Color(0xFF121926)
+                  : const Color(0xFF0F1520),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 children: [
@@ -911,7 +971,11 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                         width: 64,
                         height: 28,
                         color: const Color(0xFF1F2937),
-                        child: const Icon(Icons.sports_esports, size: 14, color: Colors.white54),
+                        child: const Icon(
+                          Icons.sports_esports,
+                          size: 14,
+                          color: Colors.white54,
+                        ),
                       ),
                     ),
                   ),
@@ -950,7 +1014,10 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                   // Discount pill
                   if (isDiscounted) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF4C6B22),
                         borderRadius: BorderRadius.circular(3),
@@ -992,7 +1059,12 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
   }
 
   /// Pagination Bar: < 1 2 3 4 > and info text
-  Widget _buildPaginationBar(int totalPages, int startIndex, int endIndex, int totalGames) {
+  Widget _buildPaginationBar(
+    int totalPages,
+    int startIndex,
+    int endIndex,
+    int totalGames,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
@@ -1035,7 +1107,10 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
               children: [
                 Text(
                   'Showing ${startIndex + 1} - $endIndex of $totalGames games (Page $_currentPage/$totalPages)',
-                  style: const TextStyle(color: Color(0xFF8F9DAE), fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF8F9DAE),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 paginationControls,
@@ -1097,9 +1172,25 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
       if (_currentPage <= 4) {
         pagesToShow = [1, 2, 3, 4, 5, -1, totalPages];
       } else if (_currentPage >= totalPages - 3) {
-        pagesToShow = [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        pagesToShow = [
+          1,
+          -1,
+          totalPages - 4,
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages,
+        ];
       } else {
-        pagesToShow = [1, -1, _currentPage - 1, _currentPage, _currentPage + 1, -2, totalPages];
+        pagesToShow = [
+          1,
+          -1,
+          _currentPage - 1,
+          _currentPage,
+          _currentPage + 1,
+          -2,
+          totalPages,
+        ];
       }
     }
 
@@ -1110,7 +1201,10 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
             padding: EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               '...',
-              style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         );
@@ -1126,10 +1220,14 @@ class _SteamAllGamesScreenState extends State<SteamAllGamesScreen> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF0284C7) : const Color(0xFF1E2838),
+                  color: isActive
+                      ? const Color(0xFF0284C7)
+                      : const Color(0xFF1E2838),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isActive ? const Color(0xFF38BDF8) : const Color(0xFF2E3E55),
+                    color: isActive
+                        ? const Color(0xFF38BDF8)
+                        : const Color(0xFF2E3E55),
                   ),
                 ),
                 alignment: Alignment.center,

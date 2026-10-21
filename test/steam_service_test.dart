@@ -6,16 +6,26 @@ void main() {
   group('SteamService buildSteamXmlUrl tests', () {
     test('handles standard 17-digit steamId64', () {
       final url = SteamService.buildSteamXmlUrl('76561198006889896');
-      expect(url, 'https://steamcommunity.com/profiles/76561198006889896/?xml=1');
+      expect(
+        url,
+        'https://steamcommunity.com/profiles/76561198006889896/?xml=1',
+      );
     });
 
     test('handles profile url with trailing slash', () {
-      final url = SteamService.buildSteamXmlUrl('https://steamcommunity.com/profiles/76561198006889896/');
-      expect(url, 'https://steamcommunity.com/profiles/76561198006889896/?xml=1');
+      final url = SteamService.buildSteamXmlUrl(
+        'https://steamcommunity.com/profiles/76561198006889896/',
+      );
+      expect(
+        url,
+        'https://steamcommunity.com/profiles/76561198006889896/?xml=1',
+      );
     });
 
     test('handles vanity customURL', () {
-      final url = SteamService.buildSteamXmlUrl('https://steamcommunity.com/id/gabelogannewell');
+      final url = SteamService.buildSteamXmlUrl(
+        'https://steamcommunity.com/id/gabelogannewell',
+      );
       expect(url, 'https://steamcommunity.com/id/gabelogannewell/?xml=1');
     });
 
@@ -128,11 +138,12 @@ void main() {
         currencyName: 'Vietnamese Dong',
       );
       // ignore: avoid_print
-      print('Profile: ${result.profileName}, games: ${result.games.length}, totalValue: ${result.totalValue}, todayPrice: ${result.todayPrice}');
+      print(
+        'Profile: ${result.profileName}, games: ${result.games.length}, totalValue: ${result.totalValue}, todayPrice: ${result.todayPrice}',
+      );
       expect(result.profileName, 'FahnarT');
       expect(result.games.isNotEmpty, true);
       expect(result.totalValue, isNot('N/A'));
     }, timeout: const Timeout(Duration(seconds: 90)));
   });
 }
-

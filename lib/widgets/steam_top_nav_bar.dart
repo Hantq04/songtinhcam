@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
 import '../services/backup_service.dart';
 import '../services/database_service.dart';
@@ -31,12 +32,7 @@ class SteamTopNavBar extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF0B0F17),
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF1E2638),
-            width: 1,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFF1E2638), width: 1)),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 10 : 16,
@@ -108,7 +104,8 @@ class SteamTopNavBar extends StatelessWidget {
               ),
             ),
 
-          if (showBackButton || showMenuButton) SizedBox(width: isMobile ? 8 : 14),
+          if (showBackButton || showMenuButton)
+            SizedBox(width: isMobile ? 8 : 14),
 
           // Logo SongTinhCam SteamDB style
           Row(
@@ -815,25 +812,22 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
-                    controller: _steamIdController,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13.5,
+                  controller: _steamIdController,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                  cursorColor: const Color(0xFF38BDF8),
+                  decoration: const InputDecoration(
+                    hintText: 'SteamID64 or vanity profile URL',
+                    hintStyle: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 13,
                     ),
-                    cursorColor: const Color(0xFF38BDF8),
-                    decoration: const InputDecoration(
-                      hintText: 'SteamID64 or vanity profile URL',
-                      hintStyle: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
-                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
+              ),
               const SizedBox(height: 8),
               const Text(
                 'Stored securely in local SQLite. When you log in, this Steam account will be calculated automatically.',
@@ -882,7 +876,8 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                       backgroundColor: const Color(0xFF1B62C0),
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: (_isSaving ||
+                    onPressed:
+                        (_isSaving ||
                             _isCalculating ||
                             _steamIdController.text.trim().isEmpty)
                         ? null
@@ -936,9 +931,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         SnackBar(
           backgroundColor: const Color(0xFF15803D),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           content: Row(
             children: [
               const Icon(Icons.check_circle, color: Colors.white, size: 20),
@@ -961,9 +954,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         SnackBar(
           backgroundColor: const Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           content: Row(
             children: [
               const Icon(Icons.error_outline, color: Colors.white, size: 20),
@@ -1006,9 +997,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         SnackBar(
           backgroundColor: const Color(0xFF15803D),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           content: Row(
             children: [
               const Icon(Icons.check_circle, color: Colors.white, size: 20),
@@ -1031,9 +1020,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         SnackBar(
           backgroundColor: const Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           content: Row(
             children: [
               const Icon(Icons.error_outline, color: Colors.white, size: 20),
@@ -1078,7 +1065,8 @@ class _BackupDialogState extends State<_BackupDialog> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E3A8A).withValues(alpha: 0.35),
+                          color: const Color(0xFF1E3A8A)
+                              .withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -1127,8 +1115,11 @@ class _BackupDialogState extends State<_BackupDialog> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.account_circle,
-                                  size: 16, color: Color(0xFF38BDF8)),
+                              const Icon(
+                                Icons.account_circle,
+                                size: 16,
+                                color: Color(0xFF38BDF8),
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -1146,8 +1137,11 @@ class _BackupDialogState extends State<_BackupDialog> {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.history,
-                                  size: 15, color: Color(0xFF94A3B8)),
+                              const Icon(
+                                Icons.history,
+                                size: 15,
+                                color: Color(0xFF94A3B8),
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -1192,8 +1186,9 @@ class _BackupDialogState extends State<_BackupDialog> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFF38BDF8),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1217,7 +1212,9 @@ class _BackupDialogState extends State<_BackupDialog> {
                       runSpacing: 8,
                       children: [
                         TextButton(
-                          onPressed: _isLoading ? null : () => Navigator.pop(ctx),
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.pop(ctx),
                           child: const Text(
                             'Close',
                             style: TextStyle(color: Color(0xFF94A3B8)),
@@ -1246,14 +1243,18 @@ class _BackupDialogState extends State<_BackupDialog> {
                               side: const BorderSide(color: Color(0xFF38BDF8)),
                               foregroundColor: const Color(0xFF38BDF8),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 9),
+                                horizontal: 14,
+                                vertical: 9,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            onPressed:
-                                _isLoading ? null : _handleImport,
-                            icon: const Icon(Icons.file_upload_outlined, size: 16),
+                            onPressed: _isLoading ? null : _handleImport,
+                            icon: const Icon(
+                              Icons.file_upload_outlined,
+                              size: 16,
+                            ),
                             label: const Text(
                               'Import',
                               style: TextStyle(fontWeight: FontWeight.w600),
@@ -1264,15 +1265,18 @@ class _BackupDialogState extends State<_BackupDialog> {
                               backgroundColor: const Color(0xFF15803D),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 9),
+                                horizontal: 14,
+                                vertical: 9,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            onPressed:
-                                _isLoading ? null : _handleExport,
-                            icon:
-                                const Icon(Icons.file_download_outlined, size: 16),
+                            onPressed: _isLoading ? null : _handleExport,
+                            icon: const Icon(
+                              Icons.file_download_outlined,
+                              size: 16,
+                            ),
                             label: const Text(
                               'Export',
                               style: TextStyle(fontWeight: FontWeight.w600),

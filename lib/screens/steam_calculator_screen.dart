@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../services/steam_service.dart';
 import '../widgets/steam_top_nav_bar.dart';
 import 'steam_result_screen.dart';
@@ -20,7 +21,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
 
   final List<Map<String, String>> _currencies = [
     {'name': 'Vietnamese Dong', 'code': 'VND', 'symbol': '₫'},
-    {'name': 'U.S. Dollar', 'code': 'USD', 'symbol': '\$'}
+    {'name': 'U.S. Dollar', 'code': 'USD', 'symbol': '\$'},
   ];
 
   final List<Map<String, String>> _lookupExamples = [
@@ -36,10 +37,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       'type': 'Steam profile url',
       'url': 'https://steamcommunity.com/profiles/[U:1:1208333168]',
     },
-    {
-      'type': 'Steam /user/ url',
-      'url': 'https://steamcommunity.com/user/qfkb',
-    }
+    {'type': 'Steam /user/ url', 'url': 'https://steamcommunity.com/user/qfkb'},
   ];
 
   @override
@@ -144,10 +142,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            SteamTopNavBar(
-              isMobile: isMobile,
-              showMenuButton: false,
-            ),
+            SteamTopNavBar(isMobile: isMobile, showMenuButton: false),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
@@ -265,11 +260,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       child: Row(
         children: [
-          const Icon(
-            Icons.search,
-            color: Color(0xFF6B7E96),
-            size: 22,
-          ),
+          const Icon(Icons.search, color: Color(0xFF6B7E96), size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -365,9 +356,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         disabledBackgroundColor: const Color(0xFF1B62C0).withValues(alpha: 0.5),
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
@@ -393,10 +382,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 12,
         runSpacing: 10,
-        children: [
-          currencyDropdown,
-          submitButton,
-        ],
+        children: [currencyDropdown, submitButton],
       ),
     );
   }
@@ -409,8 +395,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         _buildNoteRow(
           icon: Icons.info_outline,
           iconColor: const Color(0xFF60A5FA),
-          text:
-              'Any SteamID format is accepted, enter anything you want and we will convert it on the fly for you.',
+          text: 'Any SteamID format is accepted, enter anything you want and we will convert it on the fly for you.',
         ),
         const SizedBox(height: 8),
         _buildNoteRow(
@@ -422,8 +407,7 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
         _buildNoteRow(
           icon: Icons.public,
           iconColor: const Color(0xFF34D399),
-          text:
-              'Profile and "Game details" must be set to Public on Steam so your games can be calculated.',
+          text: 'Profile and "Game details" must be set to Public on Steam so your games can be calculated.',
           linkText: 'Steam Privacy Settings',
           onLinkTap: () {
             Clipboard.setData(
@@ -467,7 +451,8 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
               ),
               children: [
                 if (text.isNotEmpty) TextSpan(text: text),
-                if (text.isNotEmpty && linkText != null) const TextSpan(text: ' '),
+                if (text.isNotEmpty && linkText != null)
+                  const TextSpan(text: ' '),
                 if (linkText != null)
                   WidgetSpan(
                     alignment: PlaceholderAlignment.middle,
@@ -569,7 +554,9 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
 
               return Container(
                 decoration: BoxDecoration(
-                  color: isEven ? const Color(0xFF121925) : const Color(0xFF0F1520),
+                  color: isEven
+                      ? const Color(0xFF121925)
+                      : const Color(0xFF0F1520),
                   border: isLast
                       ? null
                       : const Border(
@@ -579,7 +566,10 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
                           ),
                         ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     SizedBox(

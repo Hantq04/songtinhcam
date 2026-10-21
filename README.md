@@ -2,10 +2,10 @@
 
 ![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-%230175C2.svg?style=for-the-badge&logo=Dart&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.2.2-brightgreen?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.0-brightgreen?style=for-the-badge)
 [![Download APK](https://img.shields.io/badge/Download-Android%20APK-00C853?style=for-the-badge&logo=android&logoColor=white)](apk/songtinhcam-release.apk)
 
-Ứng dụng di động và đa nền tảng giúp tra cứu, định giá tài khoản Steam, quản lý danh mục trò chơi, bảo lưu lịch sử giá đáy, duy trì phiên đăng nhập vĩnh viễn trong app và sao lưu dữ liệu an toàn.
+Ứng dụng di động và đa nền tảng giúp tra cứu, định giá tài khoản Steam, quản lý danh mục trò chơi, theo dõi trạng thái tiến độ game & Start date theo Steam ID, ghi nhận nhật ký Activity thời gian chơi mới qua SQLite, bảo lưu lịch sử giá đáy, duy trì phiên đăng nhập vĩnh viễn và sao lưu dữ liệu an toàn.
 
 ---
 
@@ -80,7 +80,7 @@ Dự án tích hợp đầy đủ Unit Tests và Widget Tests để đảm bảo
   ```bash
   flutter test
   ```
-  *(25/25 bài test tự động: duy trì phiên đăng nhập SQLite khi khởi động lại máy, bảo vệ giá đáy SQLite không tăng, lọc và tìm kiếm danh sách game, phân giải URL/SteamID, định dạng tiền tệ VND/USD, kiểm tra luồng Auth & Login, sao lưu dữ liệu và giao diện responsive).*
+  *(31/31 bài test tự động: quản lý trạng thái game & tự động set Start Date theo Steam ID, tính số giờ chơi mới trong Activity qua SQLite, duy trì phiên đăng nhập SQLite khi khởi động lại máy, bảo vệ giá đáy SQLite không tăng, lọc và tìm kiếm danh sách game, phân giải URL/SteamID, định dạng tiền tệ VND/USD, kiểm tra luồng Auth & Login, sao lưu dữ liệu và giao diện responsive).*
 
 * **Kiểm tra linter và chuẩn mã nguồn**:
   ```bash

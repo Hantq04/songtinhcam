@@ -36,7 +36,8 @@ class SteamFormatters {
 
   /// Định dạng số tiền theo mã tiền tệ ('VND' hoặc 'USD' / 'Vietnamese Dong' / 'U.S. Dollar')
   static String formatAmount(num amount, String currencyCode) {
-    final isUsd = currencyCode.toUpperCase().contains('USD') ||
+    final isUsd =
+        currencyCode.toUpperCase().contains('USD') ||
         currencyCode.contains('Dollar');
     if (isUsd) {
       return formatUsd(amount);
@@ -48,7 +49,8 @@ class SteamFormatters {
   /// Định dạng chi phí trên mỗi giờ chơi
   /// Ví dụ: "12.500 ₫/h" hoặc "$0.52/h"
   static String formatPricePerHour(num amount, String currencyCode) {
-    final isUsd = currencyCode.toUpperCase().contains('USD') ||
+    final isUsd =
+        currencyCode.toUpperCase().contains('USD') ||
         currencyCode.contains('Dollar');
     if (isUsd) {
       return '\$${amount.toStringAsFixed(2)}/h';

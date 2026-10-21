@@ -2,7 +2,7 @@
 class SteamGameItem {
   final int appId;
   final String name;
-  final double playtimeHours;
+  double playtimeHours;
   final double? recentPlaytimeHours;
   final String? logoUrl;
   final String? iconUrl;
@@ -18,6 +18,7 @@ class SteamGameItem {
   String status;
   DateTime? lastPlayed;
   DateTime? addedDate;
+  DateTime? startDate;
 
   SteamGameItem({
     required this.appId,
@@ -38,6 +39,7 @@ class SteamGameItem {
     this.status = 'Affectionless',
     this.lastPlayed,
     this.addedDate,
+    this.startDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -60,7 +62,57 @@ class SteamGameItem {
       'status': status,
       'lastPlayed': lastPlayed?.toIso8601String(),
       'addedDate': addedDate?.toIso8601String(),
+      'startDate': startDate?.toIso8601String(),
     };
+  }
+}
+
+/// Nhật ký hoạt động chơi game (lưu số giờ chơi mới và thời điểm)
+class GameActivity {
+  final int? id;
+  final String steamId;
+  final int appId;
+  final double playtimeHours;
+  final DateTime loggedAt;
+  final String? userName;
+  final String? avatarUrl;
+
+  GameActivity({
+    this.id,
+    required this.steamId,
+    required this.appId,
+    required this.playtimeHours,
+    required this.loggedAt,
+    this.userName,
+    this.avatarUrl,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'steam_id': steamId,
+      'app_id': appId,
+      'playtime_hours': playtimeHours,
+      'logged_at': loggedAt.millisecondsSinceEpoch,
+      'user_name': userName,
+      'avatar_url': avatarUrl,
+    };
+  }
+
+  factory GameActivity.fromMap(Map<String, dynamic> map) {
+    return GameActivity(
+      id: map['id'] as int?,
+      steamId: (map['steam_id'] ?? '').toString(),
+      appId: (map['app_id'] as num?)?.toInt() ?? 0,
+      playtimeHours: (map['playtime_hours'] as num?)?.toDouble() ?? 0.0,
+      loggedAt: DateTime.fromMillisecondsSinceEpoch(
+        map['logged_at'] is int
+            ? map['logged_at'] as int
+            : (int.tryParse(map['logged_at'].toString()) ?? 0),
+      ),
+      userName: map['user_name'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
+    );
   }
 }
 

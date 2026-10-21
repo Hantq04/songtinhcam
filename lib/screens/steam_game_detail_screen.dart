@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/steam_models.dart';
+
+import '../services/auth_service.dart';
+import '../services/database_service.dart';
+import '../services/steam_service.dart';
 import '../utils/steam_formatters.dart';
-import '../widgets/steam_image.dart';
 import '../widgets/steam_top_nav_bar.dart';
 
 class SteamGameDetailScreen extends StatefulWidget {
@@ -10,6 +14,7 @@ class SteamGameDetailScreen extends StatefulWidget {
   final String currencyName;
   final String? profileName;
   final String? avatarUrl;
+  final String? steamId;
 
   const SteamGameDetailScreen({
     super.key,
@@ -17,6 +22,7 @@ class SteamGameDetailScreen extends StatefulWidget {
     required this.currencyName,
     this.profileName,
     this.avatarUrl,
+    this.steamId,
   });
 
   @override
@@ -25,28 +31,98 @@ class SteamGameDetailScreen extends StatefulWidget {
 
 class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
   late String _status;
+  DateTime? _startDate;
+  String _currentSteamId = '';
   final GlobalKey _statusButtonKey = GlobalKey();
-  final TextEditingController _commentController = TextEditingController();
-  String _activeActivityTab = 'Comments';
+  List<GameActivity> _activities = [];
+  bool _isLoadingActivities = true;
+  bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.game.status.isNotEmpty ? widget.game.status : 'Affectionless';
+    _status = widget.game.status.isNotEmpty
+        ? widget.game.status
+        : 'Affectionless';
+    _startDate = widget.game.startDate;
+    _currentSteamId = (widget.steamId ?? '').trim();
+    _loadGameDataAndActivities();
   }
 
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
+  Future<void> _loadGameDataAndActivities() async {
+    if (_currentSteamId.isEmpty) {
+      final email = AuthService.instance.userEmail;
+      if (email != null && email.isNotEmpty) {
+        final savedId = await DatabaseService.instance.getSavedSteamId(email);
+        if (savedId != null && savedId.isNotEmpty) {
+          _currentSteamId = savedId;
+        }
+      }
+    }
+
+    if (_currentSteamId.isNotEmpty) {
+      final savedState = await DatabaseService.instance.getGameStatus(
+        steamId: _currentSteamId,
+        appId: widget.game.appId,
+      );
+
+      if (savedState != null) {
+        final savedStatus = savedState['status'] as String?;
+        if (savedStatus != null && savedStatus.isNotEmpty) {
+          _status = savedStatus;
+          widget.game.status = savedStatus;
+        }
+        final savedStart = savedState['start_date'] as int?;
+        if (savedStart != null) {
+          _startDate = DateTime.fromMillisecondsSinceEpoch(savedStart);
+          widget.game.startDate = _startDate;
+        }
+      }
+
+      final activities = await DatabaseService.instance.getGameActivities(
+        steamId: _currentSteamId,
+        appId: widget.game.appId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _activities = activities;
+          _isLoadingActivities = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoadingActivities = false;
+        });
+      }
+    }
   }
 
-  void _setStatus(String newStatus) {
+  Future<void> _setStatus(String newStatus) async {
+    DateTime? updatedStartDate = _startDate;
+    // Khi chuyển sang in progress tự động set start date theo thời điểm đổi trạng thái sang in progress
+    if (newStatus == 'InProgress') {
+      updatedStartDate = DateTime.now();
+    }
+
     setState(() {
       _status = newStatus;
+      _startDate = updatedStartDate;
       widget.game.status = newStatus;
+      widget.game.startDate = updatedStartDate;
     });
 
+    if (_currentSteamId.isNotEmpty) {
+      await DatabaseService.instance.saveGameStatus(
+        steamId: _currentSteamId,
+        appId: widget.game.appId,
+        status: newStatus,
+        startDate: updatedStartDate,
+      );
+    }
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: const Color(0xFF1E2838),
@@ -58,6 +134,55 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _syncGamePlaytime() async {
+    if (_isSyncing || _currentSteamId.isEmpty) return;
+    setState(() {
+      _isSyncing = true;
+    });
+
+    try {
+      final res = await SteamService.calculateAccount(
+        input: _currentSteamId,
+        currencyName: widget.currencyName,
+      );
+
+      final matched = res.games.where((g) => g.appId == widget.game.appId);
+      if (matched.isNotEmpty) {
+        widget.game.playtimeHours = matched.first.playtimeHours;
+      }
+
+      await _loadGameDataAndActivities();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFF15803D),
+          content: Text(
+            'Playtime synchronized with Steam.',
+            style: TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          content: Text('Sync failed: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
+    }
   }
 
   /// Droplist menu: Only 3 statuses (Affectionless, InProgress, Done) styled matching the project
@@ -172,11 +297,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
               ),
             ),
             if (isSelected)
-              const Icon(
-                Icons.check,
-                size: 16,
-                color: Color(0xFF38BDF8),
-              ),
+              const Icon(Icons.check, size: 16, color: Color(0xFF38BDF8)),
           ],
         ),
       ),
@@ -270,10 +391,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
             widget.game.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
           ),
         ),
       ],
@@ -300,7 +418,8 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Game capsule banner if available
-          if (widget.game.logoUrl != null && widget.game.logoUrl!.isNotEmpty) ...[
+          if (widget.game.logoUrl != null &&
+              widget.game.logoUrl!.isNotEmpty) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: SteamImage(
@@ -312,7 +431,11 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
                   height: 100,
                   color: const Color(0xFF1E2838),
                   child: const Center(
-                    child: Icon(Icons.sports_esports, color: Color(0xFF64748B), size: 36),
+                    child: Icon(
+                      Icons.sports_esports,
+                      color: Color(0xFF64748B),
+                      size: 36,
+                    ),
                   ),
                 ),
               ),
@@ -495,9 +618,13 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
     final originalPriceStr = _getOriginalPriceText();
 
     // Giá đang giảm (hoặc giá hiện tại)
-    final currentPriceStr = widget.game.finalPriceFormatted ??
+    final currentPriceStr =
+        widget.game.finalPriceFormatted ??
         (widget.game.finalPrice != null
-            ? SteamFormatters.formatAmount(widget.game.finalPrice!, widget.currencyName)
+            ? SteamFormatters.formatAmount(
+                widget.game.finalPrice!,
+                widget.currencyName,
+              )
             : (isFree ? 'Free' : '—'));
 
     return Container(
@@ -529,7 +656,9 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
                 color: isDiscounted ? const Color(0xFF64748B) : Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                decoration: isDiscounted ? TextDecoration.lineThrough : TextDecoration.none,
+                decoration: isDiscounted
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
               ),
             ),
           ),
@@ -552,7 +681,9 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
                       Text(
                         currentPriceStr,
                         style: TextStyle(
-                          color: isDiscounted ? const Color(0xFF60A5FA) : Colors.white,
+                          color: isDiscounted
+                              ? const Color(0xFF60A5FA)
+                              : Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -560,7 +691,10 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
                       if (isDiscounted) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF4C6B22),
                             borderRadius: BorderRadius.circular(3),
@@ -595,15 +729,19 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
             const Divider(color: Color(0xFF1E2838), height: 16),
           ],
 
-          // Start date (để trống)
+          // Start date (hiển thị ngày bắt đầu khi chuyển sang InProgress)
           _buildDetailRow(
             label: 'Start date',
-            valueWidget: const Text(
-              'Add date',
+            valueWidget: Text(
+              _startDate != null ? _formatDetailDate(_startDate!) : '—',
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: _startDate != null
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFF64748B),
                 fontSize: 14,
-                fontStyle: FontStyle.italic,
+                fontWeight: _startDate != null
+                    ? FontWeight.w600
+                    : FontWeight.normal,
               ),
             ),
           ),
@@ -634,7 +772,9 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
     }
     if (widget.game.initialPrice != null && widget.game.initialPrice! > 0) {
       return SteamFormatters.formatAmount(
-          widget.game.initialPrice!, widget.currencyName);
+        widget.game.initialPrice!,
+        widget.currencyName,
+      );
     }
     if (widget.game.finalPriceFormatted != null &&
         widget.game.finalPriceFormatted!.isNotEmpty) {
@@ -660,7 +800,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
     );
   }
 
-  /// 3. Activity Card: Tabs (All, Comments, History, Work log), Comment Box, Activity để trống
+  /// 3. Activity Card: Chỉ hiện activity (bỏ 4 tab con, bỏ comment box, format theo work log)
   Widget _buildActivityCard() {
     return Container(
       decoration: BoxDecoration(
@@ -672,163 +812,298 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Activity',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Filter tabs: All, Comments, History, Work log
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildActivityTab('All'),
-                const SizedBox(width: 8),
-                _buildActivityTab('Comments'),
-                const SizedBox(width: 8),
-                _buildActivityTab('History'),
-                const SizedBox(width: 8),
-                _buildActivityTab('Work log'),
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Activity',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (_currentSteamId.isNotEmpty)
+                _isSyncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF38BDF8),
+                        ),
+                      )
+                    : InkWell(
+                        onTap: _syncGamePlaytime,
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.sync,
+                                size: 14,
+                                color: Color(0xFF38BDF8),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Sync Playtime',
+                                style: TextStyle(
+                                  color: Color(0xFF38BDF8),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+            ],
           ),
           const SizedBox(height: 16),
 
-          // Comment box
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF00A3BF),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'NH',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+          if (_isLoadingActivities)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF38BDF8),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF182232),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFF2A3A50)),
+            )
+          else if (_activities.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              alignment: Alignment.center,
+              child: const Column(
+                children: [
+                  Icon(
+                    Icons.history_toggle_off,
+                    color: Color(0xFF64748B),
+                    size: 36,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        controller: _commentController,
-                        style: const TextStyle(fontSize: 13, color: Colors.white),
-                        decoration: const InputDecoration(
-                          hintText: 'Add a comment...',
-                          hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          _buildQuickPromptChip('Can I get more info...?'),
-                          _buildQuickPromptChip('Status update...'),
-                          _buildQuickPromptChip('Thanks...'),
-                        ],
-                      ),
-                    ],
+                  SizedBox(height: 8),
+                  Text(
+                    'No playtime activity logged yet',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Newly played hours will appear here when synchronized with Steam.',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Pro tip
-          const Padding(
-            padding: EdgeInsets.only(left: 44),
-            child: Text(
-              'Pro tip: press M to comment',
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _activities.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(color: Color(0xFF1E2838), height: 24),
+              itemBuilder: (context, index) {
+                final activity = _activities[index];
+                return _buildActivityItem(activity);
+              },
             ),
-          ),
-
-          // Activity content is left empty as requested ("activity để trống")
         ],
       ),
     );
   }
 
-  Widget _buildActivityTab(String title) {
-    final isActive = _activeActivityTab == title;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _activeActivityTab = title;
-        });
-      },
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF1E3A8A) : const Color(0xFF182232),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isActive ? const Color(0xFF38BDF8) : const Color(0xFF26374D),
-            width: 1,
+  /// Mỗi mục activity: Avatar (NH) + Tên người dùng logged [Số giờ] + Ngày tháng năm giờ
+  /// (Tham khảo Jira worklog nhưng không cần ghi chú, không cần edit và delete)
+  Widget _buildActivityItem(GameActivity activity) {
+    final displayName =
+        (activity.userName != null && activity.userName!.trim().isNotEmpty)
+        ? activity.userName!.trim()
+        : (widget.profileName ?? 'Steam User');
+
+    final initials = _getInitials(displayName);
+    final avatarUrl = activity.avatarUrl ?? widget.avatarUrl;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Avatar circle tròn có viết tắt initials (tương ứng NH trong ảnh) hoặc avatar Steam/Google
+        ClipOval(
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(
+              color: Color(0xFF00A3BF),
+              shape: BoxShape.circle,
+            ),
+            child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                ? SteamImage(
+                    url: avatarUrl,
+                    width: 34,
+                    height: 34,
+                    fit: BoxFit.cover,
+                    errorWidget: Center(
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
           ),
         ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isActive ? Colors.white : const Color(0xFF94A3B8),
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+        const SizedBox(width: 12),
+
+        // Cột thông tin: Tên người dùng  logged [số giờ] \n Ngày tháng năm giờ
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const TextSpan(
+                      text: '  logged ',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                    TextSpan(
+                      text: _formatPlaytimeDuration(activity.playtimeHours),
+                      style: const TextStyle(
+                        color: Color(0xFF38BDF8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _formatActivityDateTime(activity.loggedAt),
+                style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildQuickPromptChip(String text) {
-    return InkWell(
-      onTap: () {
-        _commentController.text = text;
-      },
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF141C28),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFF28384E)),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Color(0xFF94A3B8),
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
+  /// Định dạng số giờ chơi: 2h, 1d, 1.5h, 45m
+  String _formatPlaytimeDuration(double hours) {
+    if (hours <= 0) return '0h';
+    if (hours >= 24) {
+      final days = (hours / 24).floor();
+      final remHours = (hours % 24).round();
+      if (remHours == 0) {
+        return '${days}d';
+      }
+      return '${days}d ${remHours}h';
+    }
+    if (hours < 1) {
+      final minutes = (hours * 60).round();
+      return '${minutes}m';
+    }
+    if ((hours - hours.round()).abs() < 0.05) {
+      return '${hours.round()}h';
+    }
+    return '${hours.toStringAsFixed(1)}h';
+  }
+
+  /// Định dạng ngày giờ dạng: October 14, 2026 at 8:30 AM
+  String _formatActivityDateTime(DateTime dt) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    final monthName = months[dt.month - 1];
+    final hour = dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final isPm = hour >= 12;
+    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    final amPm = isPm ? 'PM' : 'AM';
+
+    return '$monthName ${dt.day}, ${dt.year} at $displayHour:$minute $amPm';
+  }
+
+  /// Định dạng ngày bắt đầu
+  String _formatDetailDate(DateTime dt) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  /// Tạo chữ viết tắt 2 ký tự (Ví dụ: "Ngô Trần Quang Hà" -> "NH")
+  String _getInitials(String? name) {
+    if (name == null || name.trim().isEmpty) return 'U';
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) {
+      return parts[0].substring(0, math.min(2, parts[0].length)).toUpperCase();
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 }

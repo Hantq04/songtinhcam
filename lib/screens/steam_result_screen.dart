@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../services/steam_service.dart';
 import '../utils/steam_formatters.dart';
 import '../widgets/steam_top_nav_bar.dart';
@@ -47,6 +48,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
           currencyName: _currencyName,
           profileName: _result.profileName,
           avatarUrl: _result.avatarUrl,
+          steamId: _result.steamId,
         ),
       ),
     );
@@ -155,19 +157,13 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        const Text(
-          '/',
-          style: TextStyle(color: Color(0xFF4B5563)),
-        ),
+        const Text('/', style: TextStyle(color: Color(0xFF4B5563))),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             '${_result.profileName} (${_result.steamId})',
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
           ),
         ),
       ],
@@ -299,11 +295,17 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                 children: [
                   // Level circle badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1B2433),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF3880FF), width: 1.2),
+                      border: Border.all(
+                        color: const Color(0xFF3880FF),
+                        width: 1.2,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -321,7 +323,10 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                           height: 20,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B),
+                              width: 1.5,
+                            ),
                           ),
                           child: Center(
                             child: Text(
@@ -341,7 +346,10 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                   // Badges count badge
                   if (_result.badgesCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF162335),
                         borderRadius: BorderRadius.circular(14),
@@ -350,7 +358,11 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.military_tech_outlined, size: 14, color: Color(0xFFFBBF24)),
+                          const Icon(
+                            Icons.military_tech_outlined,
+                            size: 14,
+                            color: Color(0xFFFBBF24),
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${_result.badgesCount} badges',
@@ -365,7 +377,10 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
 
                   // Country flag / badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1B2433),
                       borderRadius: BorderRadius.circular(14),
@@ -393,7 +408,10 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                     onTap: _copyShareLink,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1B2433),
                         borderRadius: BorderRadius.circular(14),
@@ -402,7 +420,11 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.ios_share, size: 13, color: Color(0xFF94A3B8)),
+                          Icon(
+                            Icons.ios_share,
+                            size: 13,
+                            color: Color(0xFF94A3B8),
+                          ),
                           SizedBox(width: 4),
                           Text(
                             'Share',
@@ -426,7 +448,8 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
   }
 
   Widget _buildProfileRight() {
-    final hasValue = _result.games.isNotEmpty &&
+    final hasValue =
+        _result.games.isNotEmpty &&
         _result.totalValue != 'N/A' &&
         _result.totalValue.isNotEmpty &&
         _result.totalValue != '0 ₫' &&
@@ -455,7 +478,9 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          hasValue ? "Today's prices: ${_result.todayPrice}" : 'games are hidden',
+          hasValue
+              ? "Today's prices: ${_result.todayPrice}"
+              : 'games are hidden',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.5),
             fontSize: 13,
@@ -533,12 +558,15 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: Color(0xFF38BDF8), size: 18),
+            const Icon(
+              Icons.check_circle_outline,
+              color: Color(0xFF38BDF8),
+              size: 18,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                _result.statusNote ??
-                    'Full data from Steam Web API & Steam Store API (scanned entire game library and current prices).',
+                _result.statusNote ?? 'Full data from Steam Web API & Steam Store API (scanned entire game library and current prices).',
                 style: const TextStyle(
                   color: Color(0xFF93C5FD),
                   fontSize: 13,
@@ -557,7 +585,8 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     final gamesCount = _result.gamesOwned is int
         ? _result.gamesOwned as int
         : (_result.games.length);
-    final calculatedCount = _result.stats?.gamesCountCalculated ?? _result.games.length;
+    final calculatedCount =
+        _result.stats?.gamesCountCalculated ?? _result.games.length;
 
     final gamesBar = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,7 +608,9 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                calculatedCount > 0 ? '$calculatedCount games calculated' : 'games are hidden',
+                calculatedCount > 0
+                    ? '$calculatedCount games calculated'
+                    : 'games are hidden',
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
                 style: TextStyle(
@@ -650,13 +681,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     );
 
     if (isMobile) {
-      return Column(
-        children: [
-          gamesBar,
-          const SizedBox(height: 16),
-          xpBar,
-        ],
-      );
+      return Column(children: [gamesBar, const SizedBox(height: 16), xpBar]);
     }
 
     return Row(
@@ -691,20 +716,43 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isNarrow = constraints.maxWidth < 620;
-          final colWidth = isNarrow
-              ? (constraints.maxWidth - 20) / 2
-              : 155.0;
+          final colWidth = isNarrow ? (constraints.maxWidth - 20) / 2 : 155.0;
 
           return Wrap(
             spacing: isNarrow ? 20 : 24,
             runSpacing: 20,
             alignment: WrapAlignment.spaceBetween,
             children: [
-              _buildStatColumn('Average price ⓘ', avgPriceStr, Colors.white, width: colWidth),
-              _buildStatColumn('Average price per hour ⓘ', _result.pricePerHour, const Color(0xFFFBBF24), width: colWidth),
-              _buildStatColumn('Hours on record', _result.hoursPlayed, Colors.white, width: colWidth),
-              _buildStatColumn('Average playtime', avgPlaytimeStr, Colors.white, width: colWidth),
-              _buildStatColumn("⭐ Today's prices ⓘ", _result.todayPrice, const Color(0xFF60A5FA), width: colWidth),
+              _buildStatColumn(
+                'Average price ⓘ',
+                avgPriceStr,
+                Colors.white,
+                width: colWidth,
+              ),
+              _buildStatColumn(
+                'Average price per hour ⓘ',
+                _result.pricePerHour,
+                const Color(0xFFFBBF24),
+                width: colWidth,
+              ),
+              _buildStatColumn(
+                'Hours on record',
+                _result.hoursPlayed,
+                Colors.white,
+                width: colWidth,
+              ),
+              _buildStatColumn(
+                'Average playtime',
+                avgPlaytimeStr,
+                Colors.white,
+                width: colWidth,
+              ),
+              _buildStatColumn(
+                "⭐ Today's prices ⓘ",
+                _result.todayPrice,
+                const Color(0xFF60A5FA),
+                width: colWidth,
+              ),
             ],
           );
         },
@@ -715,7 +763,12 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
   String _formatAvgPrice(num amount) =>
       SteamFormatters.formatAmount(amount, _currencyName);
 
-  Widget _buildStatColumn(String label, String value, Color valueColor, {double? width}) {
+  Widget _buildStatColumn(
+    String label,
+    String value,
+    Color valueColor, {
+    double? width,
+  }) {
     return SizedBox(
       width: width ?? 155,
       child: Column(
@@ -770,13 +823,18 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                       games: _result.games,
                       currencyName: _currencyName,
                       profileName: _result.profileName,
+                      avatarUrl: _result.avatarUrl,
+                      steamId: _result.steamId,
                     ),
                   ),
                 );
               },
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E2838),
                   borderRadius: BorderRadius.circular(12),
@@ -794,7 +852,11 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF38BDF8)),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 10,
+                      color: Color(0xFF38BDF8),
+                    ),
                   ],
                 ),
               ),
@@ -813,10 +875,8 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _result.games.length > 50 ? 50 : _result.games.length,
-            separatorBuilder: (_, _) => const Divider(
-              color: Color(0xFF1B2533),
-              height: 1,
-            ),
+            separatorBuilder: (_, _) =>
+                const Divider(color: Color(0xFF1B2533), height: 1),
             itemBuilder: (context, index) {
               final game = _result.games[index];
               final isFree = game.isFree;
@@ -825,8 +885,13 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
               return InkWell(
                 onTap: () => _openGameDetail(game),
                 child: Container(
-                  color: index.isEven ? const Color(0xFF121926) : const Color(0xFF0F1520),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  color: index.isEven
+                      ? const Color(0xFF121926)
+                      : const Color(0xFF0F1520),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       SizedBox(
@@ -854,7 +919,11 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                             width: 64,
                             height: 28,
                             color: const Color(0xFF1F2937),
-                            child: const Icon(Icons.sports_esports, size: 14, color: Colors.white54),
+                            child: const Icon(
+                              Icons.sports_esports,
+                              size: 14,
+                              color: Colors.white54,
+                            ),
                           ),
                         ),
                       ),
@@ -893,7 +962,10 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                       // Discount pill
                       if (isDiscounted) ...[
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF4C6B22),
                             borderRadius: BorderRadius.circular(3),
@@ -944,6 +1016,8 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
                       games: _result.games,
                       currencyName: _currencyName,
                       profileName: _result.profileName,
+                      avatarUrl: _result.avatarUrl,
+                      steamId: _result.steamId,
                     ),
                   ),
                 );
