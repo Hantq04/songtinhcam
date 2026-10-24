@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+
 import '../models/steam_models.dart';
 import '../utils/steam_formatters.dart';
 import 'auth_service.dart';
@@ -13,6 +15,9 @@ export '../models/steam_models.dart';
 export '../widgets/steam_image.dart';
 
 class SteamService {
+  @visibleForTesting
+  static Future<SteamCalculationResult> Function(String input, String currencyName)? mockCalculateAccount;
+
   /// Steam Web API Key: Đọc thông qua EnvService tập trung
   static Future<String> getApiKey() => EnvService.getSteamApiKey();
 
@@ -222,6 +227,10 @@ class SteamService {
     required String input,
     required String currencyName,
   }) async {
+    if (mockCalculateAccount != null) {
+      return await mockCalculateAccount!(input, currencyName);
+    }
+
     if (input.trim().isEmpty) {
       throw Exception('Please provide a Steam URL or SteamID');
     }

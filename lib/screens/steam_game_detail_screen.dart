@@ -318,6 +318,7 @@ class _SteamGameDetailScreenState extends State<SteamGameDetailScreen> {
             SteamTopNavBar(
               isMobile: isMobile,
               showBackButton: true,
+              currencyName: widget.currencyName,
               onBack: () => Navigator.pop(context),
             ),
 

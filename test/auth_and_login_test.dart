@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:songtinhcam/main.dart';
-import 'package:songtinhcam/models/steam_models.dart';
 import 'package:songtinhcam/screens/login_screen.dart';
 import 'package:songtinhcam/screens/steam_all_games_screen.dart';
+import 'package:songtinhcam/screens/steam_result_screen.dart';
 import 'package:songtinhcam/services/auth_service.dart';
 import 'package:songtinhcam/services/database_service.dart';
 import 'package:songtinhcam/services/env_service.dart';
+import 'package:songtinhcam/services/steam_service.dart';
 
 void main() {
   Database? testDb;
@@ -327,6 +328,72 @@ void main() {
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
       expect(find.text('User Profile'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Saving SteamID in Profile dialog saves to SQLite and immediately displays SteamResultScreen without re-login',
+    (WidgetTester tester) async {
+      AuthService.instance.setLoggedInUser(
+        email: 'autonav.gamer@gmail.com',
+        displayName: 'AutoNav Gamer',
+      );
+
+      // Mock calculation result so widget test does not hit live network
+      SteamService.mockCalculateAccount = (input, currency) async {
+        return SteamCalculationResult(
+          profileName: 'GamerAutoProfile',
+          steamId: input,
+          steamLevel: 10,
+          realName: 'Auto Gamer',
+          avatarUrl: 'https://example.com/avatar.jpg',
+          totalValue: '1.250.000 ₫',
+          lowestPrice: '850.000 ₫',
+          gamesOwned: 12,
+          hoursPlayed: '120.5h',
+          pricePerHour: '10.000 ₫/h',
+          vacStatus: 'In good standing',
+          games: const [],
+        );
+      };
+      addTearDown(() => SteamService.mockCalculateAccount = null);
+
+      await tester.pumpWidget(const SteamApp());
+      await tester.pumpAndSettle();
+
+      // Open Profile dialog
+      await tester.tap(find.byTooltip('Account & Backup'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('User Profile'), findsOneWidget);
+
+      // Enter Steam ID in TextField
+      final steamIdField = find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(steamIdField, '76561199168598896');
+      await tester.pumpAndSettle();
+
+      // Tap 'Save' button in Profile dialog within runAsync for SQLite FFI isolate
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save'));
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+
+      // Verify Profile dialog is closed and SteamResultScreen is immediately active
+      expect(find.text('User Profile'), findsNothing);
+      expect(find.byType(SteamResultScreen), findsOneWidget);
+      expect(find.text('GamerAutoProfile (76561199168598896)'), findsOneWidget);
+
+      // Verify Steam ID was persisted in SQLite
+      final savedId = await tester.runAsync(() async {
+        return await DatabaseService.instance.getSavedSteamId('autonav.gamer@gmail.com');
+      });
+      expect(savedId, '76561199168598896');
     },
   );
 

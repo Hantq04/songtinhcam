@@ -16,6 +16,7 @@ class SteamTopNavBar extends StatelessWidget {
   final bool showMenuButton;
   final VoidCallback? onMenuTap;
   final String activeTab;
+  final String currencyName;
 
   const SteamTopNavBar({
     super.key,
@@ -25,6 +26,7 @@ class SteamTopNavBar extends StatelessWidget {
     this.showMenuButton = false,
     this.onMenuTap,
     this.activeTab = 'Calculator',
+    this.currencyName = 'Vietnamese Dong',
   });
 
   @override
@@ -389,7 +391,10 @@ class SteamTopNavBar extends StatelessWidget {
   void _showProfileDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext ctx) => const _ProfileDialog(),
+      builder: (BuildContext ctx) => _ProfileDialog(
+        parentContext: context,
+        currencyName: currencyName,
+      ),
     );
   }
 
@@ -427,7 +432,13 @@ class SteamTopNavBar extends StatelessWidget {
 }
 
 class _ProfileDialog extends StatefulWidget {
-  const _ProfileDialog();
+  final BuildContext? parentContext;
+  final String currencyName;
+
+  const _ProfileDialog({
+    this.parentContext,
+    this.currencyName = 'Vietnamese Dong',
+  });
 
   @override
   State<_ProfileDialog> createState() => _ProfileDialogState();
@@ -483,6 +494,7 @@ class _ProfileDialogState extends State<_ProfileDialog> {
     });
 
     try {
+      // 1. Lưu Steam ID vào SQLite
       await DatabaseService.instance.saveUserProfile(
         email: email,
         displayName: AuthService.instance.userName,
@@ -490,37 +502,58 @@ class _ProfileDialogState extends State<_ProfileDialog> {
         avatarUrl: AuthService.instance.userAvatarUrl,
       );
 
+      // 2. Tính toán tài khoản Steam ngay lập tức
+      final result = await SteamService.calculateAccount(
+        input: steamId,
+        currencyName: widget.currencyName,
+      );
+
       if (!mounted) return;
       setState(() {
         _isSaving = false;
       });
 
-      final messenger = ScaffoldMessenger.of(context);
+      final targetContext = widget.parentContext ?? context;
       Navigator.pop(context);
 
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF15803D),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Steam ID saved to SQLite for $email',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+      if (targetContext.mounted) {
+        ScaffoldMessenger.of(targetContext).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF15803D),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Steam ID saved and calculations loaded for $email',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
+        );
+
+        Navigator.pushAndRemoveUntil(
+          targetContext,
+          MaterialPageRoute(
+            builder: (_) => SteamResultScreen(
+              result: result,
+              currencyName: widget.currencyName,
+            ),
+          ),
+          (route) => route.isFirst,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -529,7 +562,9 @@ class _ProfileDialogState extends State<_ProfileDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFDC2626),
-          content: Text('Error saving to SQLite: $e'),
+          content: Text(
+            'Saved Steam ID, but calculation error: ${e.toString().replaceAll('Exception: ', '')}',
+          ),
         ),
       );
     }
@@ -564,7 +599,7 @@ class _ProfileDialogState extends State<_ProfileDialog> {
 
       final result = await SteamService.calculateAccount(
         input: steamId,
-        currencyName: 'Vietnamese Dong',
+        currencyName: widget.currencyName,
       );
 
       if (!mounted) return;
@@ -572,17 +607,21 @@ class _ProfileDialogState extends State<_ProfileDialog> {
         _isCalculating = false;
       });
 
+      final targetContext = widget.parentContext ?? context;
       Navigator.pop(context);
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SteamResultScreen(
-            result: result,
-            currencyName: 'Vietnamese Dong',
+      if (targetContext.mounted) {
+        Navigator.pushAndRemoveUntil(
+          targetContext,
+          MaterialPageRoute(
+            builder: (_) => SteamResultScreen(
+              result: result,
+              currencyName: widget.currencyName,
+            ),
           ),
-        ),
-      );
+          (route) => route.isFirst,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -830,7 +869,7 @@ class _ProfileDialogState extends State<_ProfileDialog> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Stored securely in local SQLite. When you log in, this Steam account will be calculated automatically.',
+                'Stored securely in local SQLite. Saving will calculate and display your Steam account results immediately.',
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontSize: 11.5,
@@ -882,7 +921,16 @@ class _ProfileDialogState extends State<_ProfileDialog> {
                             _steamIdController.text.trim().isEmpty)
                         ? null
                         : _saveSteamId,
-                    child: const Text('Save'),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.8,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Save'),
                   ),
                 ],
               ),

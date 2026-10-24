@@ -6,6 +6,7 @@ import '../utils/steam_formatters.dart';
 import '../widgets/steam_top_nav_bar.dart';
 import 'steam_game_detail_screen.dart';
 import 'steam_all_games_screen.dart';
+import 'steam_calculator_screen.dart';
 
 class SteamResultScreen extends StatefulWidget {
   final SteamCalculationResult result;
@@ -73,6 +74,19 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     );
   }
 
+  void _handleBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const SteamCalculatorScreen(),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const bgDark = Color(0xFF0F141D);
@@ -86,7 +100,8 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
             SteamTopNavBar(
               isMobile: isMobile,
               showBackButton: true,
-              onBack: () => Navigator.pop(context),
+              currencyName: widget.currencyName,
+              onBack: _handleBack,
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -140,7 +155,7 @@ class _SteamResultScreenState extends State<SteamResultScreen> {
     return Row(
       children: [
         InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: _handleBack,
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [

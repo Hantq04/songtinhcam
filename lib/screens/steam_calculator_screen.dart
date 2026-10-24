@@ -142,7 +142,11 @@ class _SteamCalculatorScreenState extends State<SteamCalculatorScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            SteamTopNavBar(isMobile: isMobile, showMenuButton: false),
+            SteamTopNavBar(
+              isMobile: isMobile,
+              showMenuButton: false,
+              currencyName: _selectedCurrency,
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
